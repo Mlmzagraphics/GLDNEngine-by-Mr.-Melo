@@ -22,6 +22,14 @@
     --gold:#5cc2ff; --gold-deep:#3a9fe0; --gold-dim:#2b4b66; --gold-bright:#93d7ff;
     --crimson:#8aa2c2; --crimson-deep:#3a4a60; --ok:#7fd0d6;
     --glow:rgba(92,194,255,.55); --glow-soft:rgba(92,194,255,.30); --glow-white:rgba(233,242,251,.20);
+    --lift: 0 1px 0 rgba(255,255,255,.05) inset, 0 0 0 1px rgba(92,194,255,.10),
+      0 26px 60px -16px rgba(0,0,0,.8), 0 10px 24px -8px rgba(0,0,0,.6),
+      0 0 46px -6px rgba(92,194,255,.22), 0 0 90px -20px rgba(92,194,255,.16);
+    --lift-sm: 0 1px 0 rgba(255,255,255,.04) inset, 0 0 0 1px rgba(92,194,255,.09),
+      0 12px 26px -10px rgba(0,0,0,.7), 0 4px 10px -4px rgba(0,0,0,.5),
+      0 0 22px -4px rgba(92,194,255,.22);
+    --well: inset 0 2px 6px rgba(0,0,0,.5), inset 0 0 0 1px rgba(92,194,255,.06),
+      inset 0 0 22px rgba(92,194,255,.05);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-text-size-adjust:100%}
@@ -56,36 +64,35 @@
   .signature b{color:var(--gold-deep);font-weight:500}
   .context{display:flex;flex-wrap:wrap;gap:6px}
   .chip{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);
-    border:1px solid var(--edge);border-radius:4px;padding:5px 10px;background:transparent;white-space:nowrap;
-    text-shadow:0 0 8px rgba(157,178,202,.16)}
+    border:1px solid rgba(29,42,59,.7);border-radius:8px;padding:5px 10px;background:var(--panel2);white-space:nowrap;
+    text-shadow:0 0 8px rgba(157,178,202,.16);box-shadow:var(--lift-sm)}
   .chip b{color:var(--gold);font-weight:500;text-shadow:0 0 10px var(--glow-soft)}
 
-  .hero{background:var(--panel);border:1px solid var(--edge);border-radius:10px;
+  .hero{background:var(--panel);border:1px solid rgba(92,194,255,.16);border-radius:16px;
     padding:22px 24px;margin-bottom:14px;position:relative;overflow:hidden;
-    box-shadow:0 0 34px rgba(92,194,255,.06), inset 0 0 26px rgba(92,194,255,.02)}
-  .hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);
-    box-shadow:0 0 16px var(--glow),0 0 4px var(--gold)}
-  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:250px;height:250px;
-    background:radial-gradient(circle,rgba(92,194,255,.12),transparent 70%);pointer-events:none}
+    box-shadow:var(--lift), 0 0 60px rgba(92,194,255,.10), inset 0 0 34px rgba(92,194,255,.035)}
+  .hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);
+    box-shadow:0 0 24px var(--glow),0 0 8px var(--gold),0 0 60px rgba(92,194,255,.4)}
+  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:280px;height:280px;
+    background:radial-gradient(circle,rgba(92,194,255,.18),transparent 70%);pointer-events:none}
   .verdict{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
     text-transform:uppercase;margin-bottom:10px;text-shadow:0 0 12px var(--glow-soft)}
   .headline{font-family:"Saira",sans-serif;font-weight:700;line-height:.92;
     font-size:clamp(44px,11vw,74px);letter-spacing:-.015em;color:var(--bone);
-    text-shadow:0 0 40px var(--glow),0 0 14px var(--glow-white)}
+    text-shadow:0 0 54px var(--glow),0 0 20px var(--glow-white),0 0 100px rgba(92,194,255,.18)}
   .headline .cur{color:var(--gold);font-size:.44em;vertical-align:.34em;font-weight:500;
-    text-shadow:0 0 20px var(--glow)}
+    text-shadow:0 0 26px var(--glow)}
   .headline small{display:block;font-family:"IBM Plex Sans";font-weight:400;font-size:13px;
     letter-spacing:0;color:var(--muted);margin-top:10px;text-transform:none;max-width:38ch;text-shadow:none}
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:22px;
-    background:var(--edge);border:1px solid var(--edge);border-radius:8px;overflow:hidden}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}
   @media(max-width:480px){.stats{grid-template-columns:1fr 1fr}}
-  .stat{background:var(--panel);padding:15px 16px}
+  .stat{background:var(--panel2);padding:15px 16px;border-radius:11px;box-shadow:var(--well)}
   .stat .k{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.13em;
     text-transform:uppercase;color:var(--faint);margin-bottom:8px}
   .stat .v{font-family:"Saira",sans-serif;font-size:26px;font-weight:600;color:var(--bone);
-    letter-spacing:.01em;text-shadow:0 0 16px var(--glow-white)}
-  .stat .v.gold{color:var(--gold);text-shadow:0 0 20px var(--glow)}
-  .stat .v.warn{color:var(--bone);text-shadow:0 0 16px var(--glow-white)}
+    letter-spacing:.01em;text-shadow:0 0 22px var(--glow-white),0 0 42px rgba(92,194,255,.10)}
+  .stat .v.gold{color:var(--gold);text-shadow:0 0 26px var(--glow),0 0 50px rgba(92,194,255,.18)}
+  .stat .v.warn{color:var(--bone);text-shadow:0 0 22px var(--glow-white)}
   .stat .sub{font-size:10.5px;color:var(--muted);margin-top:3px}
 
   .grid{display:grid;grid-template-columns:334px 1fr;gap:14px;align-items:start}
@@ -93,10 +100,13 @@
     la pagina se ensanche en vez de solo activar el scroll horizontal interno */
   @media(max-width:860px){.grid{grid-template-columns:1fr}}
 
-  .card{background:var(--panel);border:1px solid var(--edge);border-radius:10px;
-    box-shadow:inset 0 0 0 1px rgba(92,194,255,.02)}
+  .dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  @media(max-width:700px){.dual-grid{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid rgba(92,194,255,.13);border-radius:14px;
+    box-shadow:var(--lift)}
   .card.pad{padding:17px}
-  .card+.card{margin-top:12px}
+  .card+.card{margin-top:14px}
   .card-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.22em;
     text-transform:uppercase;color:var(--gold);margin-bottom:16px;padding-bottom:12px;
     border-bottom:1px solid var(--edge);text-shadow:0 0 12px var(--glow-soft)}
@@ -109,13 +119,13 @@
     font-weight:500;text-shadow:0 0 12px var(--glow-soft)}
   .stepper{display:inline-flex;align-items:center;gap:8px}
   .stepper .val{min-width:44px;text-align:center}
-  .stp{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:6px;
+  .stp{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:50%;
     border:1px solid var(--gold-dim);background:var(--panel2);color:var(--gold);
     font-family:"IBM Plex Mono",monospace;font-size:15px;line-height:1;cursor:pointer;
     display:flex;align-items:center;justify-content:center;transition:.12s;
-    box-shadow:0 0 10px rgba(92,194,255,.12);text-shadow:0 0 8px var(--glow-soft)}
+    box-shadow:var(--lift-sm), 0 0 10px rgba(92,194,255,.1);text-shadow:0 0 8px var(--glow-soft)}
   .stp:active{transform:scale(.94)}
-  .stp:hover{border-color:var(--gold);box-shadow:0 0 16px var(--glow-soft)}
+  .stp:hover{border-color:var(--gold);box-shadow:var(--lift-sm), 0 0 16px var(--glow-soft)}
 
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;
     background:var(--edge);border-radius:0;outline:none;padding:0}
@@ -125,9 +135,9 @@
   input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:2px;background:var(--gold);
     cursor:pointer;border:3px solid var(--ink);box-shadow:0 0 0 1px var(--gold-deep),0 0 14px var(--glow)}
 
-  select,input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--edge);
+  select,input[type=number]{width:100%;background:var(--panel2);border:1px solid rgba(29,42,59,.7);
     color:var(--bone);font-family:"IBM Plex Mono",monospace;font-size:14.5px;padding:11px 12px;
-    border-radius:6px;outline:none;-webkit-appearance:none;appearance:none}
+    border-radius:10px;outline:none;-webkit-appearance:none;appearance:none;box-shadow:var(--well)}
   select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%235cc2ff' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
     background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
   select:focus,input[type=number]:focus{border-color:var(--gold);box-shadow:0 0 12px var(--glow-soft)}
@@ -136,24 +146,25 @@
   .segs.wrap4{flex-wrap:wrap}
   .seg{flex:1;min-width:62px;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:12px;
     min-height:44px;display:flex;align-items:center;justify-content:center;
-    border:1px solid var(--edge);border-radius:6px;background:var(--panel2);
-    color:var(--muted);cursor:pointer;transition:.12s;user-select:none;-webkit-tap-highlight-color:transparent}
+    border:1px solid rgba(29,42,59,.7);border-radius:11px;background:var(--panel2);
+    color:var(--muted);cursor:pointer;transition:.12s;user-select:none;-webkit-tap-highlight-color:transparent;
+    box-shadow:var(--lift-sm)}
   .seg:active{transform:scale(.98)}
   .seg.on{background:var(--gold);color:#04121e;border-color:var(--gold);font-weight:600;
-    box-shadow:0 0 18px var(--glow)}
+    box-shadow:var(--lift-sm), 0 0 18px var(--glow)}
 
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
   .qchip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
-    border:1px solid var(--edge);border-radius:5px;padding:8px 11px;background:var(--panel2);
-    cursor:pointer;transition:.12s;-webkit-tap-highlight-color:transparent}
+    border:1px solid rgba(29,42,59,.7);border-radius:9px;padding:8px 11px;background:var(--panel2);
+    cursor:pointer;transition:.12s;-webkit-tap-highlight-color:transparent;box-shadow:var(--lift-sm)}
   .qchip:active{transform:scale(.97)}
-  .qchip.on{border-color:var(--gold);color:var(--gold);box-shadow:0 0 14px var(--glow-soft)}
+  .qchip.on{border-color:var(--gold);color:var(--gold);box-shadow:var(--lift-sm), 0 0 14px var(--glow-soft)}
 
   .hint{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.45}
-  .reset{width:100%;margin-top:2px;background:transparent;border:1px solid var(--gold-dim);
+  .reset{width:100%;margin-top:2px;background:var(--panel2);border:1px solid var(--gold-dim);
     color:var(--gold);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;
-    text-transform:uppercase;min-height:46px;border-radius:6px;cursor:pointer;transition:.12s;
-    -webkit-tap-highlight-color:transparent;text-shadow:0 0 10px var(--glow-soft)}
+    text-transform:uppercase;min-height:46px;border-radius:12px;cursor:pointer;transition:.12s;
+    -webkit-tap-highlight-color:transparent;text-shadow:0 0 10px var(--glow-soft);box-shadow:var(--lift-sm)}
   .reset:active{background:rgba(92,194,255,.08);box-shadow:0 0 18px var(--glow-soft)}
 
   .chart-card{padding:18px 14px 8px}
@@ -190,15 +201,15 @@
 
 
   /* --- añadidos para el panel de pronostico / objetivo financiero --- */
-  .fgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--edge);
-    border:1px solid var(--edge);border-radius:8px;overflow:hidden;margin-top:4px}
+  .fgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
   .fgrid3{grid-template-columns:repeat(3,1fr) !important}
   @media(max-width:760px){.fgrid{grid-template-columns:repeat(2,1fr)}}
-  .fcell{background:var(--panel);padding:14px 15px}
+  .fcell{background:var(--panel2);padding:14px 15px;border-radius:11px;box-shadow:var(--well)}
   .fcell .k{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--faint);margin-bottom:7px;line-height:1.3;min-height:23px}
-  .fcell .v{font-family:"Saira",sans-serif;font-size:19px;font-weight:600;color:var(--bone)}
-  .fcell .v.accent{color:var(--gold);text-shadow:0 0 14px var(--glow-soft)}
+  .fcell .v{font-family:"Saira",sans-serif;font-size:19px;font-weight:600;color:var(--bone);
+    text-shadow:0 0 18px var(--glow-white)}
+  .fcell .v.accent{color:var(--gold);text-shadow:0 0 22px var(--glow),0 0 44px rgba(92,194,255,.14)}
   .fcell .sub{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4}
 
   .insight{background:rgba(92,194,255,.045);border:1px solid var(--edge);border-left:2px solid var(--gold);
@@ -206,6 +217,16 @@
   .insight b{color:var(--gold)}
 
   .goalrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-bottom:12px}
+  .ladder-row{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
+  .ladder-row input{padding:9px 10px;font-size:13px}
+  .ladder-row .rm{width:34px;height:34px;border-radius:7px;border:1px solid var(--edge);background:var(--panel2);
+    color:var(--muted);cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:15px;flex-shrink:0}
+  .ladder-row .rm:active{background:rgba(92,194,255,.1);color:var(--gold)}
+  .ladder-labels{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:8px;margin-bottom:6px}
+  .ladder-labels span{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint)}
+  @media(max-width:480px){.ladder-row,.ladder-labels{grid-template-columns:1fr 1fr 1fr 30px;gap:5px}
+    .ladder-row input{padding:8px 6px;font-size:12px}}
   .goalrow:last-child{margin-bottom:0}
   .goalrow input{max-width:150px}
   .badge{font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:6px 11px;border-radius:5px;
@@ -237,6 +258,7 @@
   html,body{background:var(--ink) !important;}
   body::before{display:none} /* la rejilla de fondo no aporta en papel, se quita para legibilidad */
   .wrap{max-width:100%}
+  .dual-grid{grid-template-columns:1fr !important}
   .signature{position:static !important;display:inline-block;margin-bottom:10px;background:transparent !important;border:none;box-shadow:none}
   .reset{display:none}
   details.adv{display:none} /* supuestos avanzados: no aportan a un reporte de resultados */
@@ -245,7 +267,7 @@
   /* Nada de "evitar corte" en contenedores grandes: forzarlos a no partirse
      es lo que dejaba paginas casi vacias (el bloque entero saltaba de pagina
      si no cabia completo). Dejamos que fluyan con normalidad. */
-  .card,.hero{box-shadow:none !important}
+  .card,.hero,.stat,.fcell,.seg,.qchip,.reset,.stp,select,input[type=number],.chip{box-shadow:none !important}
   .hero::after{display:none} /* el circulo decorativo no se recorta bien al imprimir */
   .hero::before{display:none}
 
@@ -408,19 +430,7 @@
     <p class="hint">Deja un campo en 0 para no evaluarlo. Las sugerencias ajustan solo el lote inicial, dejando el resto igual. El drawdown se evalúa en el percentil 95 (mayor basket), no el promedio.</p>
   </div>
 
-  <div class="grid">
-    <!-- ============ CONTROLES ============ -->
-    <div>
-      <div class="card pad">
-        <div class="card-title">Cargar historial real (MT5)</div>
-        <p class="hint">Sube el archivo <b>ReportHistory-....html</b> exportado desde tu cuenta de MetaTrader 5 (Historial de cuenta → botón derecho → Guardar como informe → HTML). Cada archivo que subas se <b>combina</b> con lo ya calibrado — no lo reemplaza, así el simulador mejora con cada historial nuevo.</p>
-        <input type="file" id="historyFile" accept=".html,.htm" style="width:100%;margin:10px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)">
-        <button type="button" id="historyUploadBtn" class="reset" style="margin-bottom:8px">⭱ Cargar y combinar calibración</button>
-        <p class="hint" id="historyStatus" style="min-height:16px"></p>
-        <div id="historySummary" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.6;margin:8px 0"></div>
-        <button type="button" id="historyReset" class="reset" style="border-style:dashed">↺ Reiniciar calibración (valores de fábrica)</button>
-      </div>
-
+  <div class="dual-grid">
       <div class="card pad">
         <div class="card-title">Bróker y cuenta</div>
 
@@ -485,6 +495,7 @@
         </div>
       </div>
 
+
       <div class="card pad">
         <div class="card-title">Estrategia (EA)</div>
 
@@ -539,7 +550,7 @@
           <input type="range" id="maxo" min="5" max="50" step="1" value="50">
         </div>
 
-        <button type="button" class="reset" id="reset">↺ Restaurar preset oficial</button>
+        <button type="button" class="reset" id="reset">↺ Restaurar todo a cero (parámetros + calibración)</button>
 
         <details class="adv">
           <summary>Supuestos del modelo probabilístico</summary>
@@ -570,10 +581,8 @@
           </div>
         </details>
       </div>
-    </div>
+  </div>
 
-    <!-- ============ DETALLE DETERMINISTA (peor caso) ============ -->
-    <div>
       <div class="card chart-card">
         <div class="chart-head">
           <h3>Escenario determinista extremo</h3>
@@ -601,15 +610,77 @@
         </div>
       </div>
 
-      <p class="foot" id="foot"></p>
-    </div>
-  </div>
+        <p class="foot" id="foot"></p>
 
   <div class="card pad" style="margin-top:12px">
     <div class="card-title">Metodología y calibración con historial real (info adicional)</div>
     <div class="insight" id="insight" style="border:none;background:transparent;padding:0;margin-top:0"></div>
   </div>
+
+  <div class="card pad">
+    <div class="card-title">Plan de escalado de capital</div>
+    <p class="hint">Programa a partir de qué capital cambiar el lote inicial (y opcionalmente el multiplicador). El simulador calcula, con la frecuencia real calibrada, cuánto tiempo tomaría llegar a cada escalón siguiendo este plan.</p>
+
+    <div class="field">
+      <label>Mostrar capitales en</label>
+      <div class="segs" id="ladderUnitSegs">
+        <button type="button" class="seg on" data-unit="usd">USD ($)</button>
+        <button type="button" class="seg" data-unit="usc">Centavos (USC)</button>
+      </div>
+      <p class="hint" style="margin-top:6px">En cuenta cent, 1 USD real = 100 USC en la plataforma — igual que en "Bróker y cuenta".</p>
+    </div>
+
+    <div class="goalrow" style="grid-template-columns:1fr auto;margin-bottom:10px">
+      <div class="field" style="margin:0">
+        <label>Simular hasta capital <span id="ladderTargetUnitLabel">(USD)</span></label>
+        <input type="number" id="ladderTarget" min="0" step="100" value="2000" inputmode="numeric">
+      </div>
+      <span class="hint" id="ladderTargetHint" style="align-self:end;padding-bottom:11px"></span>
+    </div>
+
+    <div class="goalrow" style="grid-template-columns:1fr auto;margin-bottom:10px">
+      <div class="field" style="margin:0">
+        <label>Techo de operaciones mínimo a mantener (colchón de seguridad)</label>
+        <input type="number" id="ladderMinOrders" min="1" step="1" value="30" inputmode="numeric">
+      </div>
+      <span class="hint" style="align-self:end;padding-bottom:11px">operaciones</span>
+    </div>
+    <p class="hint" style="margin-top:-4px">El auto-cálculo busca, para cada escalón, el <b>lote más grande</b> que aún mantenga al menos este techo de operaciones antes de un stop-out en el peor escenario (línea recta, sin retroceso) — usando el multiplicador que pongas en cada fila.</p>
+
+    <div id="ladderRows"></div>
+    <button type="button" id="ladderAutoFill" class="reset" style="margin:8px 0">⚙ Auto-calcular lotes según el techo</button>
+    <button type="button" id="ladderAddRow" class="reset" style="margin-bottom:8px;border-style:dashed">+ Añadir escalón</button>
+    <button type="button" id="ladderSimulate" class="reset" style="margin-bottom:8px">▶ Simular plan de escalado</button>
+
+    <div id="ladderResults" style="display:none">
+      <div class="subhead" style="margin-top:14px">Resultado de la simulación</div>
+      <div class="fgrid fgrid3">
+        <div class="fcell"><div class="k">Tiempo estimado (media)</div><div class="v accent" id="ladderDaysMedia">—</div><div class="sub" id="ladderDaysMediaSub"></div></div>
+        <div class="fcell"><div class="k">Escenario lento</div><div class="v" id="ladderDaysBaja">—</div><div class="sub" id="ladderDaysBajaSub">0,5× frecuencia</div></div>
+        <div class="fcell"><div class="k">Escenario rápido</div><div class="v" id="ladderDaysAlta">—</div><div class="sub" id="ladderDaysAltaSub">2× frecuencia</div></div>
+      </div>
+      <div id="ladderChart" style="margin-top:14px"></div>
+      <div class="tbl-scroll" style="max-height:260px;margin-top:10px">
+        <table>
+          <thead><tr><th>Escalón</th><th>Capital desde</th><th>Lote</th><th>Multip.</th><th>Días (media)</th><th>Fecha estimada</th><th>Profit/día en ese tramo</th></tr></thead>
+          <tbody id="ladderTbody"></tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:10px">Estimación basada en el valor esperado (promedio) de tu calibración actual, aplicado día a día — no considera la variabilidad real dentro de cada tramo (rachas buenas o malas), por eso se muestran también los escenarios lento/rápido. Si algún escalón nunca alcanza el siguiente (profit/día ≤ $0), se marca como "no alcanzable".</p>
+    </div>
+  </div>
 </div>
+
+      <div class="card pad">
+        <div class="card-title">Cargar historial real (MT5)</div>
+        <p class="hint">Sube el archivo <b>ReportHistory-....html</b> exportado desde tu cuenta de MetaTrader 5 (Historial de cuenta → botón derecho → Guardar como informe → HTML). Cada archivo que subas se <b>combina</b> con lo ya calibrado — no lo reemplaza, así el simulador mejora con cada historial nuevo.</p>
+        <input type="file" id="historyFile" accept=".html,.htm" style="width:100%;margin:10px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)">
+        <button type="button" id="historyUploadBtn" class="reset" style="margin-bottom:8px">⭱ Cargar y combinar calibración</button>
+        <p class="hint" id="historyStatus" style="min-height:16px"></p>
+        <div id="historySummary" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.6;margin:8px 0"></div>
+        <button type="button" id="historyReset" class="reset" style="border-style:dashed">⊘ Poner calibración en cero (sin historial de fábrica)</button>
+      </div>
+
 
 <script>
 // ================= MOTOR DETERMINISTA (peor caso, validado) =================
@@ -778,6 +849,15 @@ const EMP_DEFAULT = {
   regimes: {'0.01':{nDist:{1:343,2:286,3:180,4:113,5:94,6:48,7:27,8:22,9:21,10:10,11:5,12:6,13:2,14:2,15:1,20:2,25:1}, cycles:1163, days:14.49}}
 };
 EMP_DEFAULT.totalCommission = 0.06*EMP_DEFAULT.totalVolume; // consistente con $0.06/lote confirmado
+
+// calibracion en CERO absoluto: sin el historial de fabrica incluido, para quien
+// quiera partir de la nada y calibrar solo con sus propios historiales subidos
+const EMP_ZERO = {
+  nDist:{}, hourlyDist:new Array(24).fill(0), hourlyProfitSum:new Array(24).fill(0),
+  totalCycles:0, totalDays:0, totalVolume:0, totalCommission:0, commissionPerLot:0.06,
+  cyclesPerDay:0, gridPipsRef:10, tpClassicPipsRef:21, sources:0, ranges:[],
+  sumProfitUSD:0, sumProfitSqUSD:0, maxLosingStreak:0, maxLosingStreakLoss:0, regimes:{}
+};
 let EMP = JSON.parse(JSON.stringify(EMP_DEFAULT));
 EMP.cyclesPerDay = 104.93;
 EMP.commissionPerLot = 0.06;
@@ -921,7 +1001,20 @@ function loadCalibration(){
     const raw=localStorage.getItem(CALIB_KEY);
     if(!raw) return false;
     const loaded=JSON.parse(raw);
-    if(loaded && loaded.nDist && loaded.totalCycles>0){ EMP=loaded; return true; }
+    if(loaded && loaded.nDist && typeof loaded.totalCycles==='number'){
+      // fusionar con la forma actual: rellena campos nuevos que un guardado
+      // de una version anterior del simulador no tenia todavia (compatibilidad hacia atras)
+      EMP = Object.assign({}, JSON.parse(JSON.stringify(EMP_DEFAULT)), loaded);
+      if(!Array.isArray(EMP.hourlyDist) || EMP.hourlyDist.length<24) EMP.hourlyDist=new Array(24).fill(0);
+      if(!Array.isArray(EMP.hourlyProfitSum) || EMP.hourlyProfitSum.length<24) EMP.hourlyProfitSum=new Array(24).fill(0);
+      if(!EMP.regimes || typeof EMP.regimes!=='object') EMP.regimes={};
+      if(!Array.isArray(EMP.ranges)) EMP.ranges=[];
+      if(typeof EMP.sumProfitUSD!=='number') EMP.sumProfitUSD=0;
+      if(typeof EMP.sumProfitSqUSD!=='number') EMP.sumProfitSqUSD=0;
+      if(typeof EMP.maxLosingStreak!=='number') EMP.maxLosingStreak=0;
+      if(typeof EMP.maxLosingStreakLoss!=='number') EMP.maxLosingStreakLoss=0;
+      return true;
+    }
   }catch(e){}
   return false;
 }
@@ -935,6 +1028,13 @@ function findOverlap(newStart, newEnd){
 }
 
 function mergeCalibration(stats){
+  if(!Array.isArray(EMP.hourlyDist) || EMP.hourlyDist.length<24) EMP.hourlyDist=new Array(24).fill(0);
+  if(!Array.isArray(EMP.hourlyProfitSum) || EMP.hourlyProfitSum.length<24) EMP.hourlyProfitSum=new Array(24).fill(0);
+  if(!EMP.regimes || typeof EMP.regimes!=='object') EMP.regimes={};
+  if(!Array.isArray(EMP.ranges)) EMP.ranges=[];
+  if(typeof EMP.sumProfitUSD!=='number') EMP.sumProfitUSD=0;
+  if(typeof EMP.sumProfitSqUSD!=='number') EMP.sumProfitSqUSD=0;
+
   for(const n in stats.nCounts){ EMP.nDist[n]=(EMP.nDist[n]||0)+stats.nCounts[n]; }
   for(let h=0;h<24;h++){
     EMP.hourlyDist[h]=(EMP.hourlyDist[h]||0)+stats.hourCounts[h];
@@ -1001,6 +1101,11 @@ function bestWorstHour(){
 
 function updateHistorySummary(){
   const el=$('historySummary');
+  if(!EMP.totalCycles || EMP.totalCycles<=0){
+    el.innerHTML='<b style="color:var(--gold)">Calibración en cero</b> — 0 historiales, 0 ciclos. '
+      +'El pronóstico de "profit esperado" y compañía usará solo el modelo teórico (sin ventaja de mercado asumida) hasta que subas tu primer historial real.';
+    return;
+  }
   const rangesTxt = (EMP.ranges||[]).map(r=>r.label).join(' · ');
   const se = empiricalStdErrUSD();
   const bw = bestWorstHour();
@@ -1055,6 +1160,12 @@ function AN_hybridEvCycle(levels, commissionPerLot){
   const N=levels.length;
   const r=AN_forecast(levels, commissionPerLot);
   let pMassWithin=0; for(let n=1;n<N;n++) pMassWithin+=empiricalP(n);
+  // sin NINGUN dato empirico (calibracion en cero): la aproximacion de "cola" de abajo asume que
+  // casi toda la masa es empirica y solo el nivel final es teorico — con 0% empirico esa aproximacion
+  // colapsa todo en el ultimo nivel del ladder, dando un valor irreal. En ese caso, usar directamente
+  // el valor esperado teorico COMPLETO (ya correcto en si mismo, cubre todos los niveles) sin recortar.
+  if(pMassWithin<=1e-9) return r.EProfitCycle;
+
   const pTail=1-pMassWithin;
   const profitAt=levels.map(lv=>lv.A*lv.b-lv.floatingLoss-commissionPerLot*lv.totalLots);
   const lastIdx=N-1;
@@ -1103,6 +1214,175 @@ function solveLotForMaxDD(targetDD, baseP, lo, hi, scanPoints){
   return {lot:L, dd:dd95(L), status:'ok'};
 }
 
+function solveLotForMinOrders(targetMinOrders, baseP, lo, hi, scanPoints){
+  // encuentra el lote MAS GRANDE tal que el techo determinista (peor caso, linea recta)
+  // se mantenga en AL MENOS targetMinOrders operaciones antes del stop-out.
+  // mas lote = mas profit, pero tambien MENOS operaciones de colchon antes de romper —
+  // esta funcion busca el limite exacto entre "seguro" (>= techo) y "demasiado lote".
+  lo=lo||0.01; hi=hi||10.0; scanPoints=scanPoints||60;
+  const ordersAt=(lot)=>simulate(Object.assign({},baseP,{lotsInicial:lot})).ordersOpened;
+  const ordersLo=ordersAt(lo);
+  if(ordersLo<targetMinOrders) return {lot:null, orders:ordersLo, status:'unreachable_even_at_min_lot'};
+  const pts=[]; for(let i=0;i<scanPoints;i++) pts.push(lo*Math.pow(hi/lo, i/(scanPoints-1)));
+  let lastOk=lo, firstBad=hi;
+  for(const x of pts){ if(ordersAt(x)>=targetMinOrders) lastOk=x; else { firstBad=x; break; } }
+  let L=lastOk, R=firstBad;
+  for(let it=0; it<40; it++){ const mid=(L+R)/2; if(ordersAt(mid)>=targetMinOrders) L=mid; else R=mid; }
+  // redondear a 2 decimales de forma conservadora: si el redondeo normal cae por debajo
+  // del techo pedido (por la naturaleza discreta de "ordenes"), bajar un centesimo mas
+  let lotRounded=Math.round(L*100)/100;
+  if(ordersAt(lotRounded)<targetMinOrders) lotRounded=Math.round((lotRounded-0.01)*100)/100;
+  if(lotRounded<lo) lotRounded=Math.round(lo*100)/100;
+  return {lot:lotRounded, orders:ordersAt(lotRounded), status:'ok'};
+}
+
+// ================= PLAN DE ESCALADO DE CAPITAL =================
+let ladderRows = [
+  {from:1000, lote:0.01, mult:1.20},
+  {from:2000, lote:0.02, mult:1.20},
+  {from:4000, lote:0.04, mult:1.20}
+];
+
+let ladderUnit='usd'; // 'usd' o 'usc' — solo afecta como se MUESTRAN los capitales; internamente todo sigue en USD
+let ladderTargetUSD=2000;
+const ladderToDisplay=(usd)=>ladderUnit==='usc'?Math.round(usd*100):usd;
+const ladderToUSD=(val)=>ladderUnit==='usc'?val/100:val;
+const ladderUnitSuffix=()=>ladderUnit==='usc'?' USC':' USD';
+
+function renderLadderRows(){
+  const container=$('ladderRows');
+  let html='<div class="ladder-labels"><span>Capital desde ('+(ladderUnit==='usc'?'USC':'USD')+')</span><span>Lote inicial</span><span>Multiplicador</span><span></span></div>';
+  ladderRows.forEach((r,i)=>{
+    html+='<div class="ladder-row">'
+      +'<input type="number" class="ladder-from" data-i="'+i+'" value="'+ladderToDisplay(r.from)+'" min="0" step="'+(ladderUnit==='usc'?'10000':'100')+'" inputmode="numeric">'
+      +'<input type="number" class="ladder-lote" data-i="'+i+'" value="'+r.lote+'" min="0.01" step="0.01" inputmode="decimal">'
+      +'<input type="number" class="ladder-mult" data-i="'+i+'" value="'+r.mult+'" min="1.00" max="2.00" step="0.01" inputmode="decimal">'
+      +'<button type="button" class="rm" data-i="'+i+'">✕</button></div>';
+  });
+  container.innerHTML=html;
+  container.querySelectorAll('.ladder-from,.ladder-lote,.ladder-mult').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const i=+inp.dataset.i;
+      if(inp.classList.contains('ladder-from')) ladderRows[i].from=ladderToUSD(+inp.value||0);
+      if(inp.classList.contains('ladder-lote')) ladderRows[i].lote=+inp.value||0.01;
+      if(inp.classList.contains('ladder-mult')) ladderRows[i].mult=+inp.value||1.2;
+    });
+  });
+  container.querySelectorAll('.rm').forEach(btn=>{
+    btn.addEventListener('click',()=>{ ladderRows.splice(+btn.dataset.i,1); renderLadderRows(); });
+  });
+}
+
+function refreshLadderUnitDisplay(){
+  $('ladderTargetUnitLabel').textContent='('+(ladderUnit==='usc'?'USC':'USD')+')';
+  $('ladderTarget').step=ladderUnit==='usc'?'10000':'100';
+  $('ladderTarget').value=ladderToDisplay(ladderTargetUSD);
+  renderLadderRows();
+}
+
+function simulateLadder(){
+  const startCapital=S.capital;
+  const target=ladderTargetUSD || startCapital*2;
+  const sorted=[...ladderRows].filter(r=>r.lote>0).sort((a,b)=>a.from-b.from);
+  const coverage=hourlyCoverage(S.horaInicio,S.horaFin);
+  const scenarios={baja:0.5, media:1.0, alta:2.0};
+  const results={};
+
+  for(const key in scenarios){
+    const volMult=scenarios[key];
+    let capital=startCapital, day=0, guard=0, reached=false;
+    const milestones=[];
+    while(guard<2000){
+      guard++;
+      if(capital>=target){ milestones.push({day,capital,final:true}); reached=true; break; }
+      let active=null;
+      for(const r of sorted){ if(capital>=r.from) active=r; }
+      if(!active) active={from:0, lote:S.lote, mult:S.mult};
+
+      const pAnLadder={capital, leverage:S.leverage, price:S.price, ozPerLot:S.oz,
+        lotsInicial:active.lote, mult:active.mult||S.mult, maxOrdenes:S.maxo,
+        gridPips:S.gridPips, tpClassicPips:S.tpClasico, stopOutPct:S.so,
+        hybridStart:5, sigmaDay:VOL_SCENARIOS[S.volKey], commissionPerLot:S.commission};
+      selectActiveDistribution(active.lote);
+      const cpd=EMP.cyclesPerDay*volMult*coverage;
+      const h=AN_hybridForecast(pAnLadder, cpd);
+      const profitDay=h.EProfitDay;
+
+      let nextThreshold=target;
+      for(const r of sorted){ if(r.from>capital && r.from<nextThreshold) nextThreshold=r.from; }
+
+      if(profitDay<=0){
+        milestones.push({day, capital, lote:active.lote, mult:active.mult||S.mult, profitDay, unreachable:true});
+        break;
+      }
+      const daysNeeded=(nextThreshold-capital)/profitDay;
+      milestones.push({day, capital, lote:active.lote, mult:active.mult||S.mult, profitDay});
+      day+=daysNeeded;
+      capital=nextThreshold;
+    }
+    results[key]={milestones, totalDays:reached?day:null, reached};
+  }
+  return results;
+}
+
+function drawLadderChart(media){
+  const el=$('ladderChart');
+  const w=Math.max(280, el.clientWidth||400);
+  const mobile=w<560;
+  const H=mobile?Math.round(w*0.6):Math.min(260,Math.round(w*0.36));
+  const mL=mobile?50:58, mR=14, mT=14, mB=mobile?32:28;
+  const plotW=w-mL-mR, plotH=H-mT-mB;
+  const pts=media.milestones.filter(m=>!m.unreachable);
+  if(pts.length<1){ el.innerHTML=''; return; }
+  const maxDay=Math.max(pts[pts.length-1].day,1);
+  const maxCap=Math.max(...pts.map(p=>p.capital));
+  const X=d=>mL+plotW*(d/maxDay), Y=c=>mT+plotH*(1-c/maxCap);
+  let s='';
+  for(let i=0;i<=4;i++){
+    const val=maxCap*i/4, y=Y(val);
+    s+='<line x1="'+mL+'" y1="'+y.toFixed(1)+'" x2="'+(w-mR)+'" y2="'+y.toFixed(1)+'" stroke="#16212e"/>';
+    s+='<text x="'+(mL-7)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#6f8398">'+(ladderUnit==='usc'?nf(Math.round(val*100)):('$'+nf(val)))+'</text>';
+  }
+  let line=''; pts.forEach((p,i)=>{ line+=(i?' L ':'M ')+X(p.day).toFixed(1)+' '+Y(p.capital).toFixed(1); });
+  s+='<path d="'+line+'" fill="none" stroke="var(--gold)" stroke-width="2.4"/>';
+  pts.forEach(p=>{ s+='<circle cx="'+X(p.day).toFixed(1)+'" cy="'+Y(p.capital).toFixed(1)+'" r="3.5" fill="var(--ink)" stroke="var(--gold)" stroke-width="1.6"/>'; });
+  s+='<text x="'+(mL+plotW/2)+'" y="'+(H-2)+'" text-anchor="middle" font-family="IBM Plex Sans" font-size="10.5" fill="#9db2ca">días transcurridos</text>';
+  el.innerHTML='<svg width="'+w+'" height="'+H+'" viewBox="0 0 '+w+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+s+'</svg>';
+}
+
+function updateLadderResults(results){
+  $('ladderResults').style.display='block';
+  const media=results.media;
+  if(media.reached){
+    $('ladderDaysMedia').textContent=Math.round(media.totalDays)+' días';
+    $('ladderDaysMediaSub').textContent='≈ '+(media.totalDays/30).toFixed(1)+' meses';
+  } else {
+    $('ladderDaysMedia').textContent='No alcanzable';
+    $('ladderDaysMediaSub').textContent='con este plan';
+  }
+  $('ladderDaysBaja').textContent=results.baja.reached?(Math.round(results.baja.totalDays)+' días'):'No alcanzable';
+  $('ladderDaysBajaSub').textContent=results.baja.reached?('≈ '+(results.baja.totalDays/30).toFixed(1)+' meses · 0,5× frecuencia'):'0,5× frecuencia';
+  $('ladderDaysAlta').textContent=results.alta.reached?(Math.round(results.alta.totalDays)+' días'):'No alcanzable';
+  $('ladderDaysAltaSub').textContent=results.alta.reached?('≈ '+(results.alta.totalDays/30).toFixed(1)+' meses · 2× frecuencia'):'2× frecuencia';
+
+  const today=new Date();
+  const fmtCap=(usd)=>ladderUnit==='usc'?(nf(Math.round(usd*100))+' USC'):('$'+nf(usd));
+  let rows='';
+  media.milestones.forEach((m,i)=>{
+    if(m.final){
+      const d=new Date(today.getTime()+m.day*86400000);
+      rows+='<tr><td><b>Meta</b></td><td>'+fmtCap(m.capital)+'</td><td>—</td><td>—</td><td>'+Math.round(m.day)+'</td><td>'+d.toLocaleDateString('es-ES')+'</td><td>—</td></tr>';
+    } else if(m.unreachable){
+      rows+='<tr><td>'+(i+1)+'</td><td>'+fmtCap(m.capital)+'</td><td>'+m.lote.toFixed(2)+'</td><td>'+m.mult.toFixed(2)+'</td><td colspan="3">⚠ No alcanzable con este lote (profit/día ≤ $0)</td></tr>';
+    } else {
+      const d=new Date(today.getTime()+m.day*86400000);
+      rows+='<tr><td>'+(i+1)+'</td><td>'+fmtCap(m.capital)+'</td><td>'+m.lote.toFixed(2)+'</td><td>'+m.mult.toFixed(2)+'</td><td>'+Math.round(m.day)+'</td><td>'+d.toLocaleDateString('es-ES')+'</td><td>$'+m.profitDay.toFixed(2)+'</td></tr>';
+    }
+  });
+  $('ladderTbody').innerHTML=rows;
+  drawLadderChart(media);
+}
+
 function AN_hybridForecast(p, cyclesPerDayOverride){
   const levels=AN_buildLevels(p);
   const Nreal=levels.length;
@@ -1115,17 +1395,26 @@ function AN_hybridForecast(p, cyclesPerDayOverride){
   const lastIdx=Nreal-1;
   const lossAtNreal=levels[lastIdx].A*levels[lastIdx].xSo-levels[lastIdx].B+p.commissionPerLot*levels[lastIdx].totalLots;
 
-  let EProfit=0; for(let n=1;n<Nreal;n++) EProfit+=empiricalP(n)*profitAt[n-1];
-  if(pTailBeyond>1e-12){
-    const wTp=rTheo.PTpAt[lastIdx]||0, wRuin=rTheo.PRuinAt[lastIdx]||pTailBeyond;
-    const denom=(wTp+wRuin)>0?(wTp+wRuin):1;
-    EProfit += pTailBeyond*((wTp/denom)*profitAt[lastIdx] - (wRuin/denom)*lossAtNreal);
-  }
-  let EOrders=0; for(let n=1;n<Nreal;n++) EOrders+=empiricalP(n)*n;
-  EOrders += pTailBeyond*Nreal;
+  let EProfit, EOrders, mayorBasket;
+  if(pMassWithin<=1e-9){
+    // sin NINGUN dato empirico: usar el modelo teorico completo y correcto en todos los campos,
+    // no la aproximacion "cola=ultimo nivel" (que colapsaria todo al peor caso posible)
+    EProfit=rTheo.EProfitCycle;
+    EOrders=rTheo.EOrders;
+    mayorBasket=AN_percentile(rTheo.V, 0.95);
+  } else {
+    EProfit=0; for(let n=1;n<Nreal;n++) EProfit+=empiricalP(n)*profitAt[n-1];
+    if(pTailBeyond>1e-12){
+      const wTp=rTheo.PTpAt[lastIdx]||0, wRuin=rTheo.PRuinAt[lastIdx]||pTailBeyond;
+      const denom=(wTp+wRuin)>0?(wTp+wRuin):1;
+      EProfit += pTailBeyond*((wTp/denom)*profitAt[lastIdx] - (wRuin/denom)*lossAtNreal);
+    }
+    EOrders=0; for(let n=1;n<Nreal;n++) EOrders+=empiricalP(n)*n;
+    EOrders += pTailBeyond*Nreal;
 
-  let cum=0, mayorBasket=Nreal;
-  for(let n=1;n<Nreal;n++){ cum+=empiricalP(n); if(cum>=0.95){mayorBasket=n; break;} }
+    let cum=0; mayorBasket=Nreal;
+    for(let n=1;n<Nreal;n++){ cum+=empiricalP(n); if(cum>=0.95){mayorBasket=n; break;} }
+  }
 
   const cpd = cyclesPerDayOverride!==undefined ? cyclesPerDayOverride : EMP.cyclesPerDay;
   const EProfitDay=EProfit*cpd, EProfitMonth=EProfitDay*21;
@@ -1186,6 +1475,7 @@ function badge(el,ok,textOk,textMiss){
 // ================= RENDER =================
 function render(){
   readInputs(); syncLabels();
+  if($('ladderTargetHint')) $('ladderTargetHint').textContent='Duplicar tu capital actual = $'+nf(S.capital*2);
 
   // --- motor determinista (peor caso, para grafico/tabla) ---
   const gridUsd = S.gridPips*0.10;
@@ -1419,14 +1709,48 @@ function setBroker(key,apply){
 
 $('historyUploadBtn').addEventListener('click', handleHistoryUpload);
 $('historyReset').addEventListener('click', ()=>{
-  if(!confirm('¿Reiniciar la calibración a los valores de fábrica? Se perderán los historiales combinados.')) return;
-  EMP = JSON.parse(JSON.stringify(EMP_DEFAULT));
-  EMP.cyclesPerDay = 104.93; EMP.commissionPerLot = 0.06;
-  try{ localStorage.removeItem(CALIB_KEY); }catch(e){}
-  $('commission').value = 0.06;
+  if(!confirm('¿Poner la calibración en cero? Esto borra TODO — incluido el historial de fábrica de ejemplo — y deja el simulador sin ningún ciclo calibrado, listo para que subas tus propios historiales desde cero.')) return;
+  EMP = JSON.parse(JSON.stringify(EMP_ZERO));
+  saveCalibration();
   updateHistorySummary();
-  $('historyStatus').textContent='Calibración reiniciada a valores de fábrica.';
+  $('historyStatus').textContent='Calibración puesta en cero: 0 historiales, 0 ciclos. Sube tu primer archivo cuando quieras.';
   render();
+});
+
+$('ladderAutoFill').addEventListener('click',()=>{
+  readInputs();
+  const targetOrders=+$('ladderMinOrders').value||30;
+  const gridUsd=S.gridPips*0.10;
+  let anyUnreachable=false;
+  ladderRows.forEach(r=>{
+    const baseP={capital:r.from, leverage:S.leverage, price:S.price, ozPerLot:S.oz,
+      mult:r.mult||S.mult, maxOrdenes:S.maxo, grid:gridUsd, stopOut:S.so/100};
+    const sol=solveLotForMinOrders(targetOrders, baseP, 0.01, 10.0);
+    if(sol.status==='ok' && sol.lot){ r.lote=sol.lot; } else { anyUnreachable=true; }
+  });
+  renderLadderRows();
+  if(anyUnreachable){
+    alert('Aviso: en al menos un escalón, ni el lote mínimo (0.01) alcanza el techo de '+targetOrders+' operaciones que pediste con ese capital — revísalo a mano (puede que ese capital sea muy bajo para ese techo, o el multiplicador muy alto).');
+  }
+});
+$('ladderUnitSegs').addEventListener('click',e=>{
+  const t=e.target.closest('.seg'); if(!t) return;
+  [...$('ladderUnitSegs').children].forEach(c=>c.classList.remove('on')); t.classList.add('on');
+  ladderUnit=t.dataset.unit;
+  refreshLadderUnitDisplay();
+});
+$('ladderTarget').addEventListener('input',()=>{
+  ladderTargetUSD=ladderToUSD(+$('ladderTarget').value||0);
+});
+$('ladderAddRow').addEventListener('click',()=>{
+  const last=ladderRows[ladderRows.length-1];
+  ladderRows.push({from:last?last.from*2:2000, lote:last?Math.round(last.lote*2*100)/100:0.02, mult:last?last.mult:S.mult});
+  renderLadderRows();
+});
+$('ladderSimulate').addEventListener('click',()=>{
+  readInputs();
+  const results=simulateLadder();
+  updateLadderResults(results);
 });
 
 $('exportPdf').addEventListener('click',()=>{
@@ -1439,7 +1763,11 @@ $('exportPdf').addEventListener('click',()=>{
   }
 });
 $('reset').addEventListener('click',()=>{
+  if(!confirm('¿Restaurar TODO a cero? Esto borra los parámetros ajustados, el plan de escalado, y deja la calibración en 0 historiales (0 ciclos) — sin ningún dato de ejemplo cargado. Esta acción no se puede deshacer.')) return;
+
   try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
+  try{localStorage.removeItem(CALIB_KEY);}catch(e){}
+
   $('capital').value=1000;$('lote').value=0.01;$('mult').value=1.20;$('grid').value=10;$('tpClasico').value=21;
   $('price').value=4000;$('maxo').value=50;$('so').value=50;$('commission').value=0.06;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=1;S.volKey='media';S.ruinTarget=1;
   $('goalDaily').value=0;$('goalMonthly').value=0;$('goalDD').value=0;
@@ -1448,6 +1776,26 @@ $('reset').addEventListener('click',()=>{
   [...$('volSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.vol==='media'));
   [...$('ruinTargetSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.rt==='1'));
   $('ruinTargetCustom').value=1;
+
+  // calibracion: a CERO de verdad (0 historiales, sin el ejemplo de fabrica) — igual que
+  // el boton "Poner calibracion en cero", para que restaurar todo nunca deje un dato sorpresa
+  EMP = JSON.parse(JSON.stringify(EMP_ZERO));
+  $('historyFile').value=''; $('historyStatus').textContent='';
+  updateHistorySummary();
+
+  // plan de escalado: volver al ejemplo por defecto
+  ladderRows = [
+    {from:1000, lote:0.01, mult:1.20},
+    {from:2000, lote:0.02, mult:1.20},
+    {from:4000, lote:0.04, mult:1.20}
+  ];
+  renderLadderRows();
+  ladderUnit='usd';
+  [...$('ladderUnitSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.unit==='usd'));
+  ladderTargetUSD=2000;
+  $('ladderTarget').value=2000;
+  $('ladderResults').style.display='none';
+
   setBroker('vt_ecn_cent',false); render();
 });
 
@@ -1492,6 +1840,7 @@ requestAnimationFrame(()=>requestAnimationFrame(render));
 loadCalibration();
 updateHistorySummary();
 if(!loadState()) setBroker('vt_ecn_cent',false);
+renderLadderRows();
 render();
 </script>
 </body>
