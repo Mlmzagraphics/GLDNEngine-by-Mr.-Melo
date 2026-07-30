@@ -22,14 +22,14 @@
     --gold:#5cc2ff; --gold-deep:#3a9fe0; --gold-dim:#2b4b66; --gold-bright:#93d7ff;
     --crimson:#8aa2c2; --crimson-deep:#3a4a60; --ok:#7fd0d6;
     --glow:rgba(92,194,255,.55); --glow-soft:rgba(92,194,255,.30); --glow-white:rgba(233,242,251,.20);
-    --lift: 0 1px 0 rgba(255,255,255,.05) inset, 0 0 0 1px rgba(92,194,255,.10),
-      0 26px 60px -16px rgba(0,0,0,.8), 0 10px 24px -8px rgba(0,0,0,.6),
-      0 0 46px -6px rgba(92,194,255,.22), 0 0 90px -20px rgba(92,194,255,.16);
-    --lift-sm: 0 1px 0 rgba(255,255,255,.04) inset, 0 0 0 1px rgba(92,194,255,.09),
-      0 12px 26px -10px rgba(0,0,0,.7), 0 4px 10px -4px rgba(0,0,0,.5),
-      0 0 22px -4px rgba(92,194,255,.22);
-    --well: inset 0 2px 6px rgba(0,0,0,.5), inset 0 0 0 1px rgba(92,194,255,.06),
-      inset 0 0 22px rgba(92,194,255,.05);
+    --lift: 0 1px 0 rgba(180,220,255,.07) inset, 0 0 0 1px rgba(92,194,255,.14),
+      0 30px 70px -16px rgba(2,6,20,.85), 0 12px 28px -8px rgba(4,10,26,.65),
+      0 0 60px -4px rgba(92,194,255,.30), 0 0 120px -24px rgba(92,194,255,.22);
+    --lift-sm: 0 1px 0 rgba(180,220,255,.06) inset, 0 0 0 1px rgba(92,194,255,.13),
+      0 14px 30px -10px rgba(2,6,20,.75), 0 5px 12px -4px rgba(4,10,26,.55),
+      0 0 30px -4px rgba(92,194,255,.28);
+    --well: inset 0 2px 7px rgba(2,6,20,.55), inset 0 0 0 1px rgba(92,194,255,.09),
+      inset 0 0 28px rgba(92,194,255,.08);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-text-size-adjust:100%}
@@ -68,7 +68,12 @@
     text-shadow:0 0 8px rgba(157,178,202,.16);box-shadow:var(--lift-sm)}
   .chip b{color:var(--gold);font-weight:500;text-shadow:0 0 10px var(--glow-soft)}
 
-  .hero{background:var(--panel);border:1px solid rgba(92,194,255,.16);border-radius:16px;
+  .hero{background:
+      radial-gradient(130% 65% at 12% -12%, rgba(255,255,255,.07), transparent 55%),
+      linear-gradient(180deg, rgba(92,194,255,.07) 0%, rgba(92,194,255,.012) 16%, transparent 48%),
+      rgba(8,12,19,.62);
+    -webkit-backdrop-filter:blur(26px) saturate(1.5);backdrop-filter:blur(26px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.10);border-radius:26px;
     padding:22px 24px;margin-bottom:14px;position:relative;overflow:hidden;
     box-shadow:var(--lift), 0 0 60px rgba(92,194,255,.10), inset 0 0 34px rgba(92,194,255,.035)}
   .hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);
@@ -86,7 +91,7 @@
     letter-spacing:0;color:var(--muted);margin-top:10px;text-transform:none;max-width:38ch;text-shadow:none}
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}
   @media(max-width:480px){.stats{grid-template-columns:1fr 1fr}}
-  .stat{background:var(--panel2);padding:15px 16px;border-radius:11px;box-shadow:var(--well)}
+  .stat{background:var(--panel2);padding:15px 16px;border-radius:16px;box-shadow:var(--well)}
   .stat .k{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.13em;
     text-transform:uppercase;color:var(--faint);margin-bottom:8px}
   .stat .v{font-family:"Saira",sans-serif;font-size:26px;font-weight:600;color:var(--bone);
@@ -100,10 +105,17 @@
     la pagina se ensanche en vez de solo activar el scroll horizontal interno */
   @media(max-width:860px){.grid{grid-template-columns:1fr}}
 
-  .dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;margin-top:14px}
+  @media(min-width:701px){.dual-grid>.card{margin-top:0 !important}}
+  .dual-grid+.card,.dual-grid+.dual-grid{margin-top:14px}
   @media(max-width:700px){.dual-grid{grid-template-columns:1fr}}
 
-  .card{background:var(--panel);border:1px solid rgba(92,194,255,.13);border-radius:14px;
+  .card{background:
+      radial-gradient(110% 60% at 14% -8%, rgba(255,255,255,.05), transparent 55%),
+      linear-gradient(180deg, rgba(92,194,255,.05) 0%, rgba(92,194,255,.008) 14%, transparent 42%),
+      rgba(8,12,19,.66);
+    -webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.09);border-radius:20px;
     box-shadow:var(--lift)}
   .card.pad{padding:17px}
   .card+.card{margin-top:14px}
@@ -137,7 +149,18 @@
 
   select,input[type=number]{width:100%;background:var(--panel2);border:1px solid rgba(29,42,59,.7);
     color:var(--bone);font-family:"IBM Plex Mono",monospace;font-size:14.5px;padding:11px 12px;
-    border-radius:10px;outline:none;-webkit-appearance:none;appearance:none;box-shadow:var(--well)}
+    border-radius:14px;outline:none;-webkit-appearance:none;appearance:none;box-shadow:var(--well)}
+
+  input[type=file]{color:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:12px}
+  input[type=file]::file-selector-button,input[type=file]::-webkit-file-selector-button{
+    background:var(--bone);color:#0a1420;border:none;border-radius:999px;
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+    font-weight:600;padding:10px 16px;margin-right:12px;cursor:pointer;transition:.12s;
+    box-shadow:var(--lift-sm)}
+  input[type=file]::file-selector-button:hover,input[type=file]::-webkit-file-selector-button:hover{
+    background:var(--gold-bright)}
+  input[type=file]::file-selector-button:active,input[type=file]::-webkit-file-selector-button:active{
+    transform:scale(.97)}
   select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%235cc2ff' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
     background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
   select:focus,input[type=number]:focus{border-color:var(--gold);box-shadow:0 0 12px var(--glow-soft)}
@@ -146,7 +169,8 @@
   .segs.wrap4{flex-wrap:wrap}
   .seg{flex:1;min-width:62px;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:12px;
     min-height:44px;display:flex;align-items:center;justify-content:center;
-    border:1px solid rgba(29,42,59,.7);border-radius:11px;background:var(--panel2);
+    border:1px solid rgba(255,255,255,.09);border-radius:999px;background:rgba(13,19,28,.55);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
     color:var(--muted);cursor:pointer;transition:.12s;user-select:none;-webkit-tap-highlight-color:transparent;
     box-shadow:var(--lift-sm)}
   .seg:active{transform:scale(.98)}
@@ -155,15 +179,17 @@
 
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
   .qchip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
-    border:1px solid rgba(29,42,59,.7);border-radius:9px;padding:8px 11px;background:var(--panel2);
+    border:1px solid rgba(255,255,255,.09);border-radius:999px;padding:8px 13px;background:rgba(13,19,28,.55);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
     cursor:pointer;transition:.12s;-webkit-tap-highlight-color:transparent;box-shadow:var(--lift-sm)}
   .qchip:active{transform:scale(.97)}
   .qchip.on{border-color:var(--gold);color:var(--gold);box-shadow:var(--lift-sm), 0 0 14px var(--glow-soft)}
 
   .hint{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.45}
-  .reset{width:100%;margin-top:2px;background:var(--panel2);border:1px solid var(--gold-dim);
+  .reset{width:100%;margin-top:2px;background:rgba(13,19,28,.55);border:1px solid var(--gold-dim);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
     color:var(--gold);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;
-    text-transform:uppercase;min-height:46px;border-radius:12px;cursor:pointer;transition:.12s;
+    text-transform:uppercase;min-height:46px;border-radius:999px;cursor:pointer;transition:.12s;
     -webkit-tap-highlight-color:transparent;text-shadow:0 0 10px var(--glow-soft);box-shadow:var(--lift-sm)}
   .reset:active{background:rgba(92,194,255,.08);box-shadow:0 0 18px var(--glow-soft)}
 
@@ -204,7 +230,7 @@
   .fgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
   .fgrid3{grid-template-columns:repeat(3,1fr) !important}
   @media(max-width:760px){.fgrid{grid-template-columns:repeat(2,1fr)}}
-  .fcell{background:var(--panel2);padding:14px 15px;border-radius:11px;box-shadow:var(--well)}
+  .fcell{background:var(--panel2);padding:14px 15px;border-radius:16px;box-shadow:var(--well)}
   .fcell .k{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--faint);margin-bottom:7px;line-height:1.3;min-height:23px}
   .fcell .v{font-family:"Saira",sans-serif;font-size:19px;font-weight:600;color:var(--bone);
@@ -291,6 +317,8 @@
   .hero{padding:14px 16px !important;margin-bottom:10px !important}
   .card.pad{padding:12px !important}
   .card+.card{margin-top:8px !important}
+  .dual-grid{margin-top:8px !important}
+  .dual-grid+.card,.dual-grid+.dual-grid{margin-top:8px !important}
   .grid{gap:8px !important}
   .fgrid{margin-top:4px !important}
   .stat{padding:10px 12px !important}
@@ -550,7 +578,7 @@
           <input type="range" id="maxo" min="5" max="50" step="1" value="50">
         </div>
 
-        <button type="button" class="reset" id="reset">↺ Restaurar todo a cero (parámetros + calibración)</button>
+        <button type="button" class="reset" id="reset">↺ Restaurar parámetros</button>
 
         <details class="adv">
           <summary>Supuestos del modelo probabilístico</summary>
@@ -611,11 +639,6 @@
       </div>
 
         <p class="foot" id="foot"></p>
-
-  <div class="card pad" style="margin-top:12px">
-    <div class="card-title">Metodología y calibración con historial real (info adicional)</div>
-    <div class="insight" id="insight" style="border:none;background:transparent;padding:0;margin-top:0"></div>
-  </div>
 
   <div class="card pad">
     <div class="card-title">Plan de escalado de capital</div>
@@ -681,6 +704,11 @@
         <button type="button" id="historyReset" class="reset" style="border-style:dashed">⊘ Poner calibración en cero (sin historial de fábrica)</button>
       </div>
 
+
+  <div class="card pad" style="margin-top:12px">
+    <div class="card-title">Metodología y calibración con historial real (info adicional)</div>
+    <div class="insight" id="insight" style="border:none;background:transparent;padding:0;margin-top:0"></div>
+  </div>
 
 <script>
 // ================= MOTOR DETERMINISTA (peor caso, validado) =================
@@ -1763,10 +1791,9 @@ $('exportPdf').addEventListener('click',()=>{
   }
 });
 $('reset').addEventListener('click',()=>{
-  if(!confirm('¿Restaurar TODO a cero? Esto borra los parámetros ajustados, el plan de escalado, y deja la calibración en 0 historiales (0 ciclos) — sin ningún dato de ejemplo cargado. Esta acción no se puede deshacer.')) return;
+  if(!confirm('¿Restaurar los parámetros y el plan de escalado a sus valores por defecto? La calibración de historiales NO se toca aquí — para eso usa el botón "Poner calibración en cero" en la tarjeta de abajo. Esta acción no se puede deshacer.')) return;
 
   try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
-  try{localStorage.removeItem(CALIB_KEY);}catch(e){}
 
   $('capital').value=1000;$('lote').value=0.01;$('mult').value=1.20;$('grid').value=10;$('tpClasico').value=21;
   $('price').value=4000;$('maxo').value=50;$('so').value=50;$('commission').value=0.06;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=1;S.volKey='media';S.ruinTarget=1;
@@ -1776,12 +1803,6 @@ $('reset').addEventListener('click',()=>{
   [...$('volSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.vol==='media'));
   [...$('ruinTargetSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.rt==='1'));
   $('ruinTargetCustom').value=1;
-
-  // calibracion: a CERO de verdad (0 historiales, sin el ejemplo de fabrica) — igual que
-  // el boton "Poner calibracion en cero", para que restaurar todo nunca deje un dato sorpresa
-  EMP = JSON.parse(JSON.stringify(EMP_ZERO));
-  $('historyFile').value=''; $('historyStatus').textContent='';
-  updateHistorySummary();
 
   // plan de escalado: volver al ejemplo por defecto
   ladderRows = [
