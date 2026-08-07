@@ -236,6 +236,7 @@
   /* --- añadidos para el panel de pronostico / objetivo financiero --- */
   .fgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
   .fgrid3{grid-template-columns:repeat(3,1fr) !important}
+  @media(max-width:600px){.fgrid3{grid-template-columns:1fr !important}}
   @media(max-width:760px){.fgrid{grid-template-columns:repeat(2,1fr)}}
   .fcell{background:var(--panel2);padding:14px 15px;border-radius:16px;border:1px solid rgba(92,194,255,.22);box-shadow:var(--well)}
   .fcell .k{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;
