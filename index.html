@@ -909,21 +909,40 @@ let EMP = JSON.parse(JSON.stringify(EMP_DEFAULT));
 EMP.cyclesPerDay = 104.93;
 EMP.commissionPerLot = 0.06;
 
-let ACTIVE_NDIST=null, ACTIVE_TOTAL=0, ACTIVE_REGIME_INFO=null;
-const REGIME_MIN_CYCLES=30; // minimo de ciclos en un regimen para confiar en el, si no, se usa el historico completo
+let ACTIVE_BLEND=null, ACTIVE_REGIME_INFO=null;
+const REGIME_HALF_WEIGHT=400; // ciclos TOTALES del regimen para la etiqueta general de "cuanto se confia"
+const PER_LEVEL_HALF_WEIGHT=18; // muestras EN ESE NIVEL EXACTO (n) para que ese nivel especifico pese 50%
 function selectActiveDistribution(lote){
   const key=(Math.round(lote*100)/100).toFixed(2);
   const r=EMP.regimes && EMP.regimes[key];
-  if(r && r.cycles>=REGIME_MIN_CYCLES){
-    ACTIVE_NDIST=r.nDist; ACTIVE_TOTAL=r.cycles;
-    ACTIVE_REGIME_INFO={matched:true, key, cycles:r.cycles};
-  } else {
-    ACTIVE_NDIST=EMP.nDist; ACTIVE_TOTAL=EMP.totalCycles;
-    ACTIVE_REGIME_INFO={matched:false, key, cycles:r?r.cycles:0};
+  const regimeCycles=(r && r.cycles) || 0;
+  const generalTotal=EMP.totalCycles||0;
+  // etiqueta general (para el texto explicativo): cuanto se confia en el regimen en su conjunto
+  const overallWeight = (regimeCycles>0 && generalTotal>0) ? regimeCycles/(regimeCycles+REGIME_HALF_WEIGHT) : 0;
+  ACTIVE_REGIME_INFO={matched:overallWeight>=0.5, key, cycles:regimeCycles, weight:overallWeight};
+  if(regimeCycles<=0 || generalTotal<=0){ ACTIVE_BLEND=null; return ACTIVE_REGIME_INFO; }
+  // mezcla NIVEL POR NIVEL: un lote puede tener bastantes ciclos en total pero muy pocos
+  // en un nivel (numero de ordenes) especifico, sobre todo en los niveles profundos/raros —
+  // esos niveles profundos tambien son los de mayor valor en dolares, asi que un puñado de
+  // muestras ahi puede sacudir el promedio entero si se les da el mismo peso que al resto.
+  // por eso el peso se calcula POR NIVEL, segun cuantas muestras reales hay en ESE nivel exacto,
+  // no segun el total de ciclos del regimen.
+  const ns=new Set([...Object.keys(EMP.nDist||{}), ...Object.keys(r.nDist||{})].map(Number));
+  const blend={};
+  for(const n of ns){
+    const pGeneral=(EMP.nDist[n]||0)/generalTotal;
+    const countAtN=r.nDist[n]||0;
+    const wN=countAtN/(countAtN+PER_LEVEL_HALF_WEIGHT);
+    const pRegime=countAtN/regimeCycles;
+    blend[n]=wN*pRegime + (1-wN)*pGeneral;
   }
+  ACTIVE_BLEND=blend;
   return ACTIVE_REGIME_INFO;
 }
-function empiricalP(n){ const t=ACTIVE_TOTAL||EMP.totalCycles; const dist=ACTIVE_NDIST||EMP.nDist; return t>0 ? (dist[n]||0)/t : 0; }
+function empiricalP(n){
+  if(ACTIVE_BLEND) return ACTIVE_BLEND[n]||0;
+  const t=EMP.totalCycles; return t>0 ? (EMP.nDist[n]||0)/t : 0;
+}
 
 function hourlyCoverage(horaInicio,horaFin){
   const hi=((horaInicio%24)+24)%24, hf=((horaFin%24)+24)%24;
@@ -933,6 +952,28 @@ function hourlyCoverage(horaInicio,horaFin){
   else { for(let h=hi;h<24;h++) hours.push(h); for(let h=0;h<hf;h++) hours.push(h); }
   const total=hours.reduce((s,h)=>s+(EMP.hourlyDist[h]||0),0);
   return EMP.totalCycles>0 ? total/EMP.totalCycles : 0;
+}
+// cuanto MEJOR o PEOR es, por ciclo, el tramo de horas elegido frente al promedio general del
+// dia completo — usa datos ya recolectados (hourlyProfitSum/hourlyDist) que antes solo servian
+// para contar frecuencia, no para ajustar cuanto se gana por ciclo en ese tramo especifico.
+// Ejemplo real: en el historial actual, las 18:00 promedian +$0.92/ciclo y las 15:00 -$0.08/ciclo
+// — una diferencia real que vale la pena reflejar si el usuario elige operar en esas horas.
+function hourlyQualityAdjustment(horaInicio,horaFin){
+  const hi=((horaInicio%24)+24)%24, hf=((horaFin%24)+24)%24;
+  let hours=[];
+  if(hf===hi) for(let h=0;h<24;h++) hours.push(h);
+  else if(hf>hi) for(let h=hi;h<hf;h++) hours.push(h);
+  else { for(let h=hi;h<24;h++) hours.push(h); for(let h=0;h<hf;h++) hours.push(h); }
+  let selCycles=0, selProfit=0, allCycles=0, allProfit=0;
+  for(let h=0;h<24;h++){
+    const n=EMP.hourlyDist[h]||0, sum=EMP.hourlyProfitSum[h]||0;
+    allCycles+=n; allProfit+=sum;
+    if(hours.includes(h)){ selCycles+=n; selProfit+=sum; }
+  }
+  // con pocos ciclos (en la seleccion o en el total) la diferencia por hora es puro ruido —
+  // mejor no ajustar que ajustar con una muestra que no lo sostiene
+  if(selCycles<30 || allCycles<30) return 0;
+  return (selProfit/selCycles) - (allProfit/allCycles);
 }
 
 // ================= CARGADOR DE HISTORIAL REAL (MT5 ReportHistory) =================
@@ -1033,12 +1074,20 @@ function parseMT5Report(text){
   let dominantLote=null, dominantCount=-1;
   for(const k in regimeCounts){ if(regimeCounts[k].cycles>dominantCount){ dominantCount=regimeCounts[k].cycles; dominantLote=k; } }
 
+  // "huella" de volatilidad de ESTE tramo especifico: profundidad promedio del ciclo (E[n]).
+  // esto es una medida real de cuanto se movio el mercado en este periodo, independiente del
+  // lote (ya demostrado antes que la profundidad de ciclo varia poco entre lotes, pero SI varia
+  // segun el momento del mercado) — sirve para saber si dos tramos de fechas distintas realmente
+  // vivieron condiciones distintas, o si por casualidad tuvieron el mismo caracter de mercado.
+  let sumN=0; for(const n in nCounts) sumN += Number(n)*nCounts[n];
+  const avgDepth = validCycles>0 ? sumN/validCycles : 0;
+
   // nota: en cuentas cent (USC) los valores del reporte vienen en centavos de USD;
   // se convierten a USD reales dividiendo entre 100, igual que el resto del simulador.
   return {nCounts, hourCounts, hourProfitSum, totalCycles:validCycles, totalDays:days, totalVolume,
           totalCommission:totalCommission/100, rangeStart:minTime, rangeEnd:maxTime,
           sumProfitUSD, sumProfitSqUSD, maxStreak, maxStreakLoss, regimeCounts, dominantLote,
-          avgProfitUSD: sumProfitUSD/validCycles};
+          avgProfitUSD: sumProfitUSD/validCycles, avgDepth};
 }
 
 const CALIB_KEY='goldenEngineCalibration_v1';
@@ -1096,7 +1145,8 @@ function mergeCalibration(stats){
   EMP.sources = (EMP.sources||1)+1;
   if(!EMP.ranges) EMP.ranges=[];
   EMP.ranges.push({start:stats.rangeStart.getTime(), end:stats.rangeEnd.getTime(),
-                    label:stats.rangeStart.toLocaleDateString('es-ES')+' – '+stats.rangeEnd.toLocaleDateString('es-ES')});
+                    label:stats.rangeStart.toLocaleDateString('es-ES')+' – '+stats.rangeEnd.toLocaleDateString('es-ES'),
+                    avgDepth: stats.avgDepth, cycles: stats.totalCycles});
 
   // profit real acumulado (para intervalo de confianza)
   EMP.sumProfitUSD=(EMP.sumProfitUSD||0)+stats.sumProfitUSD;
@@ -1203,7 +1253,7 @@ function handleHistoryUpload(){
   });
 }
 
-function AN_hybridEvCycle(levels, commissionPerLot){
+function AN_hybridEvCycle(levels, commissionPerLot, hourlyAdjustment){
   const N=levels.length;
   const r=AN_forecast(levels, commissionPerLot);
   let pMassWithin=0; for(let n=1;n<N;n++) pMassWithin+=empiricalP(n);
@@ -1215,22 +1265,26 @@ function AN_hybridEvCycle(levels, commissionPerLot){
 
   const pTail=1-pMassWithin;
   const profitAt=levels.map(lv=>lv.A*lv.b-lv.floatingLoss-commissionPerLot*lv.totalLots);
-  const lastIdx=N-1;
-  const lossLast=levels[lastIdx].A*levels[lastIdx].xSo-levels[lastIdx].B+commissionPerLot*levels[lastIdx].totalLots;
   let ev=0; for(let n=1;n<N;n++) ev+=empiricalP(n)*profitAt[n-1];
   if(pTail>1e-12){
-    const wtp=r.PTpAt[lastIdx]||0, wru=r.PRuinAt[lastIdx]||pTail;
-    const den=(wtp+wru)>0?(wtp+wru):1;
-    ev += pTail*((wtp/den)*profitAt[lastIdx]-(wru/den)*lossLast);
+    // el ultimo nivel del ladder es un limite ARTIFICIAL por margen disponible, no un limite
+    // natural de la teoria — cualquier formula que intente "valorar" la cola apoyandose en la
+    // probabilidad teorica de ese nivel puede dispararse (la teoria le asigna ahi una masa de
+    // probabilidad inflada, por ser un punto de absorcion forzado). Sea cual sea el tamaño de
+    // la cola, lo mas robusto es normalizar el promedio ya calculado sobre el 100% de la masa
+    // de probabilidad cubierta — asume que lo no observado se comporta como lo observado, en
+    // vez de extrapolar con una formula que ya demostro fallar en varios casos reales.
+    ev /= pMassWithin;
   }
+  if(hourlyAdjustment) ev += hourlyAdjustment;
   return ev;
 }
 
-function solveLotForDailyProfit(targetDaily, baseP, cyclesPerDay, lo, hi, scanPoints){
+function solveLotForDailyProfit(targetDaily, baseP, cyclesPerDay, lo, hi, scanPoints, hourlyAdjustment){
   lo=lo||0.01; hi=hi||5.0; scanPoints=scanPoints||40;
   const evDay=(lot)=>{
     const levels=AN_buildLevels(Object.assign({},baseP,{lotsInicial:lot}));
-    return AN_hybridEvCycle(levels, baseP.commissionPerLot)*cyclesPerDay;
+    return AN_hybridEvCycle(levels, baseP.commissionPerLot, hourlyAdjustment)*cyclesPerDay;
   };
   const pts=[]; for(let i=0;i<scanPoints;i++) pts.push(lo*Math.pow(hi/lo, i/(scanPoints-1)));
   let bestI=0, bestVal=evDay(pts[0]);
@@ -1332,6 +1386,7 @@ function simulateLadder(){
   const target=ladderTargetUSD || startCapital*2;
   const sorted=[...ladderRows].filter(r=>r.lote>0).sort((a,b)=>a.from-b.from);
   const coverage=hourlyCoverage(S.horaInicio,S.horaFin);
+  const hourlyAdjLadder=hourlyQualityAdjustment(S.horaInicio,S.horaFin);
   const scenarios={baja:0.5, media:1.0, alta:2.0};
   const results={};
 
@@ -1352,7 +1407,7 @@ function simulateLadder(){
         hybridStart:5, sigmaDay:VOL_SCENARIOS[S.volKey], commissionPerLot:S.commission};
       selectActiveDistribution(active.lote);
       const cpd=EMP.cyclesPerDay*volMult*coverage;
-      const h=AN_hybridForecast(pAnLadder, cpd);
+      const h=AN_hybridForecast(pAnLadder, cpd, hourlyAdjLadder);
       const profitDay=h.EProfitDay;
 
       let nextThreshold=target;
@@ -1430,7 +1485,78 @@ function updateLadderResults(results){
   drawLadderChart(media);
 }
 
-function AN_hybridForecast(p, cyclesPerDayOverride){
+// evalua que tan confiable es una proyeccion dada, combinando SOLO señales que ya existen
+// en el motor (no inventa datos nuevos): cuantos ciclos totales respaldan el historial general,
+// cuantos ciclos tiene el lote especifico que se esta usando, si el grid/TP siguen calibrados,
+// y que tan grande es la porcion de la cola que tuvo que extrapolarse por no tener dato propio.
+// devuelve 'alta' / 'media' / 'baja' + la razon principal, en vez de un numero falso de precision.
+// diversidad temporal: cuantos tramos NO solapados de historial hay (EMP.ranges, ya se
+// registra en cada carga) y cuanto abarca en total el calendario cubierto, de punta a punta,
+// incluyendo huecos entre tramos. Un solo tramo de 36 dias seguidos es UNA sola muestra del
+// comportamiento del mercado, aunque tenga miles de ciclos — mientras que 3 tramos de 2 semanas
+// en 3 meses distintos son 3 muestras independientes del "caracter" del mercado, mucho mas
+// representativo de lo que puede pasar en el futuro. Esto no reemplaza el conteo de ciclos,
+// lo complementa: cantidad de datos y variedad de condiciones son cosas distintas.
+function AN_marketDiversity(){
+  const ranges = Array.isArray(EMP.ranges) ? EMP.ranges : [];
+  if(ranges.length===0) return {tramos:0, spanDays:0, nivel:'ninguna', volDispersa:false};
+  const starts = ranges.map(r=>r.start), ends = ranges.map(r=>r.end);
+  const spanDays = (Math.max(...ends) - Math.min(...starts)) / (1000*60*60*24);
+
+  // fechas distintas no garantizan mercados distintos: dos tramos separados en el calendario
+  // podrian, por casualidad, haber tenido el mismo caracter de movimiento. Por eso se compara
+  // tambien la "huella" real de cada tramo (profundidad promedio de ciclo, avgDepth) — si esa
+  // huella varia bastante entre tramos, es evidencia real de que se vivieron condiciones de
+  // mercado distintas, no solo fechas distintas.
+  const depths = ranges.map(r=>r.avgDepth).filter(d=>typeof d==='number' && d>0);
+  let volDispersa=false, depthSpreadPct=0;
+  if(depths.length>=2){
+    const dMin=Math.min(...depths), dMax=Math.max(...depths);
+    depthSpreadPct = dMin>0 ? (dMax-dMin)/dMin : 0;
+    volDispersa = depthSpreadPct>=0.15; // al menos 15% de diferencia entre el tramo mas tranquilo y el mas movido
+  }
+
+  let nivel;
+  if(ranges.length>=3 && spanDays>=90 && volDispersa) nivel='alta';
+  else if(ranges.length>=2 && spanDays>=30) nivel='media';
+  else nivel='baja';
+  return {tramos:ranges.length, spanDays, nivel, volDispersa, depthSpreadPct};
+}
+
+function AN_confidenceLevel(p, regimeInfo, pTailBeyond, calibracionValida){
+  const totalCycles = EMP.totalCycles||0;
+  const regimeCycles = (regimeInfo && regimeInfo.cycles) || 0;
+  const diversity = AN_marketDiversity();
+  const razones=[];
+
+  // caso base: sin NINGUN historial calibrado todavia, todo el pronostico es teoria pura —
+  // esto SIEMPRE debe ser confianza baja, sin excepcion, sin importar como caigan las demas
+  // señales (que pueden dar falsos positivos aqui: grid/TP "coinciden" por ser ambos el valor
+  // por defecto, y no hay cola que extrapolar porque no hay nada empirico en absoluto).
+  if(totalCycles<=0){
+    return {nivel:'baja', score:0, razones:['todavia no se ha subido ningun historial real; el pronostico es 100% teorico'], totalCycles, regimeCycles, pTailBeyond, calibracionValida, diversity};
+  }
+
+  let score=0; // 0 a 5, cada señal buena suma 1
+  if(totalCycles>=1500) score++; else razones.push('poco historial general acumulado');
+  if(regimeCycles>=100) score++; else if(regimeCycles>0) razones.push('lote con pocos ciclos propios, apoyado en el mercado general');
+  else razones.push('lote sin ningun ciclo propio, 100% apoyado en el mercado general');
+  if(calibracionValida) score++; else razones.push('grid o TP distintos a los del historial calibrado');
+  if(pTailBeyond<=0.05) score++; else razones.push('una porcion notable de casos no tiene dato real y fue extrapolada');
+  if(diversity.nivel==='alta') score++;
+  else razones.push(diversity.tramos<=1
+    ? 'todo el historial viene de un unico periodo continuo de mercado; falta variedad de condiciones'
+    : 'los periodos de historial cubren poca variedad de fechas todavia');
+
+  let nivel;
+  if(score>=5) nivel='alta';
+  else if(score>=3) nivel='media';
+  else nivel='baja';
+
+  return {nivel, score, razones, totalCycles, regimeCycles, pTailBeyond, calibracionValida, diversity};
+}
+
+function AN_hybridForecast(p, cyclesPerDayOverride, hourlyAdjustment){
   const levels=AN_buildLevels(p);
   const Nreal=levels.length;
   const rTheo=AN_forecast(levels, p.commissionPerLot);
@@ -1439,6 +1565,7 @@ function AN_hybridForecast(p, cyclesPerDayOverride){
   const pTailBeyond=1-pMassWithin;
 
   const profitAt=levels.map(lv=>lv.A*lv.b-lv.floatingLoss-p.commissionPerLot*lv.totalLots);
+  const lossAtNreal_arr=levels.map(lv=>lv.A*lv.xSo-lv.B+p.commissionPerLot*lv.totalLots);
   const lastIdx=Nreal-1;
   const lossAtNreal=levels[lastIdx].A*levels[lastIdx].xSo-levels[lastIdx].B+p.commissionPerLot*levels[lastIdx].totalLots;
 
@@ -1451,17 +1578,24 @@ function AN_hybridForecast(p, cyclesPerDayOverride){
     mayorBasket=AN_percentile(rTheo.V, 0.95);
   } else {
     EProfit=0; for(let n=1;n<Nreal;n++) EProfit+=empiricalP(n)*profitAt[n-1];
-    if(pTailBeyond>1e-12){
-      const wTp=rTheo.PTpAt[lastIdx]||0, wRuin=rTheo.PRuinAt[lastIdx]||pTailBeyond;
-      const denom=(wTp+wRuin)>0?(wTp+wRuin):1;
-      EProfit += pTailBeyond*((wTp/denom)*profitAt[lastIdx] - (wRuin/denom)*lossAtNreal);
-    }
     EOrders=0; for(let n=1;n<Nreal;n++) EOrders+=empiricalP(n)*n;
-    EOrders += pTailBeyond*Nreal;
+    if(pTailBeyond>1e-12){
+      // el nivel Nreal es un limite ARTIFICIAL impuesto por el margen disponible, no un
+      // limite natural de la teoria — cualquier formula que valore la cola apoyandose en la
+      // probabilidad teorica de ese nivel puede dispararse (ya demostrado con casos reales).
+      // sea cual sea el tamaño de la cola, normalizar sobre la masa de probabilidad cubierta
+      // es lo mas robusto: asume que lo no observado se comporta como lo observado.
+      EProfit /= pMassWithin; EOrders /= pMassWithin;
+    }
 
     let cum=0; mayorBasket=Nreal;
     for(let n=1;n<Nreal;n++){ cum+=empiricalP(n); if(cum>=0.95){mayorBasket=n; break;} }
   }
+
+  // ajuste por franja horaria: si las horas elegidas historicamente rinden distinto al
+  // promedio del dia completo (dato ya real, no teorico), se refleja aqui en el profit
+  // por ciclo — no solo en cuantos ciclos/dia caben en esa ventana.
+  if(hourlyAdjustment) EProfit += hourlyAdjustment;
 
   const cpd = cyclesPerDayOverride!==undefined ? cyclesPerDayOverride : EMP.cyclesPerDay;
   const EProfitDay=EProfit*cpd, EProfitMonth=EProfitDay*21;
@@ -1492,7 +1626,11 @@ function syncLabels(){
   const hf24 = S.horaFin===24?'24:00':String(S.horaFin).padStart(2,'0')+':00';
   $('lHoras').textContent=String(S.horaInicio).padStart(2,'0')+':00–'+hf24;
   const cov=hourlyCoverage(S.horaInicio,S.horaFin);
-  $('horasHint').textContent='Cobertura de la actividad real observada: '+(cov*100).toFixed(1)+'% del día ('+nf(EMP.cyclesPerDay*cov)+' ciclos/día calibrados). Tu preset actual usa 00:00–11:00.';
+  const hAdjHint=hourlyQualityAdjustment(S.horaInicio,S.horaFin);
+  const hAdjTxt = hAdjHint!==0
+    ? (' Estas horas rinden '+(hAdjHint>=0?'$'+hAdjHint.toFixed(3)+' mejor':'−$'+Math.abs(hAdjHint).toFixed(3)+' peor')+' por ciclo que el promedio del día completo (según tu historial real) — ya incluido en el profit esperado.')
+    : '';
+  $('horasHint').textContent='Cobertura de la actividad real observada: '+(cov*100).toFixed(1)+'% del día ('+nf(EMP.cyclesPerDay*cov)+' ciclos/día calibrados). Tu preset actual usa 00:00–11:00.'+hAdjTxt;
   $('lGrid').textContent=S.gridPips+' pips';
   $('lTp').textContent=S.tpClasico+' pips';
   $('lPrice').textContent='$'+nf(S.price);
@@ -1539,15 +1677,17 @@ function render(){
   const capMin=AN_capitalMinimo(S.ruinTarget,pAn);
   const volMult = {baja:0.5, media:1.0, alta:2.0}[S.volKey];
   const coverage = hourlyCoverage(S.horaInicio, S.horaFin);
+  const hourlyAdj = hourlyQualityAdjustment(S.horaInicio, S.horaFin);
   const cyclesPerDayFinal = EMP.cyclesPerDay*volMult*coverage;
   const regimeInfo = selectActiveDistribution(S.lote);
-  const h=AN_hybridForecast(pAn, cyclesPerDayFinal);  // empirico: profit/frecuencia/operaciones
+  const h=AN_hybridForecast(pAn, cyclesPerDayFinal, hourlyAdj);  // empirico: profit/frecuencia/operaciones
+  const confInfo = AN_confidenceLevel(pAn, regimeInfo, h.pTailBeyond, h.calibracionValida);
 
   // ---- comparacion en vivo de los 3 escenarios de volatilidad (siempre visibles) ----
   const volLabels={baja:'volBaja',media:'volMedia',alta:'volAlta'};
   Object.entries({baja:0.5,media:1.0,alta:2.0}).forEach(([key,mult])=>{
     const cpd=EMP.cyclesPerDay*mult*coverage;
-    const hh=(key===S.volKey)?h:AN_hybridForecast(pAn, cpd);
+    const hh=(key===S.volKey)?h:AN_hybridForecast(pAn, cpd, hourlyAdj);
     const day=hh.EProfitDay, month=hh.EProfitMonth;
     $(volLabels[key]+'Day').textContent=(day>=0?'$':'−$')+nf2(Math.abs(day))+'/día';
     $(volLabels[key]+'Month').textContent=(month>=0?'$':'−$')+nf(Math.abs(month))+'/mes';
@@ -1592,9 +1732,27 @@ function render(){
     +(h.calibracionValida?'':'<b>Aviso:</b> cambiaste la distancia entre órdenes o el TP clásico respecto al historial (10 y 21 pips) — la calibración de frecuencia/operaciones puede ya no ser representativa. ')
     +'Con el lote, multiplicador y comisión actuales, el modelo indica un profit esperado de '+(h.EProfitCycle>=0?'+':'−')+'$'+Math.abs(h.EProfitCycle).toFixed(2)+' por ciclo ('+(h.EProfitDay>=0?'+':'−')+'$'+Math.abs(h.EProfitDay).toFixed(2)+'/día). '
     +'El riesgo de ruina por ciclo sigue siendo bajo y teórico ('+(f.PRuin*100).toFixed(4)+'%), y al repetirse ≈'+nf(cyclesPerMonth)+' veces al mes se traduce en '+(survMonth*100).toFixed(1)+'% de probabilidad de supervivencia a 1 mes — esa parte del cálculo no asume ninguna ventaja a favor del sistema, precisamente para no subestimar el riesgo de cola.'
-    +(regimeInfo.matched
-      ? ('<br><br><b>Régimen detectado:</b> tu lote inicial actual ('+S.lote.toFixed(2)+') coincide con un tramo bien representado del historial ('+nf(regimeInfo.cycles)+' ciclos reales con ese mismo lote) — el pronóstico usa esos datos específicos en vez del promedio general de todos los lotes mezclados.')
-      : ('<br><br><b>Régimen no calibrado específicamente:</b> tu lote inicial actual ('+S.lote.toFixed(2)+') tiene poco o ningún historial propio ('+nf(regimeInfo.cycles)+' ciclos) — el pronóstico usa la distribución general combinada de todos los lotes históricos como aproximación, ya que no hay suficientes datos ('+REGIME_MIN_CYCLES+'+ ciclos requeridos) para calibrar ese lote exacto por separado.'));
+    +(regimeInfo.cycles>0
+      ? ('<br><br><b>Régimen por lote:</b> tu lote inicial actual ('+S.lote.toFixed(2)+') tiene '+nf(regimeInfo.cycles)+' ciclos reales calibrados específicamente con ese mismo lote — el pronóstico combina esos datos con el promedio general, dando un '+(regimeInfo.weight*100).toFixed(0)+'% de peso a lo específico de tu lote y '+((1-regimeInfo.weight)*100).toFixed(0)+'% al histórico combinado (más ciclos propios de ese lote = más peso, de forma gradual, sin saltos bruscos entre lotes vecinos).')
+      : ('<br><br><b>Régimen por lote:</b> tu lote inicial actual ('+S.lote.toFixed(2)+') no tiene historial propio todavía — el pronóstico usa la distribución general combinada de todos los lotes históricos como aproximación.'))
+    +('<br><br><b>Confianza de esta proyección: '+confInfo.nivel.toUpperCase()+'.</b> '
+      +(confInfo.nivel==='alta'
+        ? 'Está bien respaldada por historial real propio de este lote y estas condiciones, y por varios periodos distintos de mercado.'
+        : confInfo.nivel==='media'
+          ? 'Parcialmente respaldada por datos reales; hay al menos un factor que la debilita: '+confInfo.razones.join(', ')+'.'
+          : 'Poco respaldada por datos reales todavía; se apoya bastante en aproximación teórica: '+confInfo.razones.join(', ')+'.'
+      )+' <b>Cobertura de mercado:</b> '+confInfo.diversity.tramos+' periodo'+(confInfo.diversity.tramos===1?'':'s')+' de historial subido'+(confInfo.diversity.tramos===1?'':'s')
+      +(confInfo.diversity.tramos>0 ? (', abarcando '+Math.round(confInfo.diversity.spanDays)+' días de calendario en total') : '')
+      +(confInfo.diversity.tramos>=2
+          ? ('. Comparando la profundidad real de ciclo entre esos periodos, difieren en un '+(confInfo.diversity.depthSpreadPct*100).toFixed(0)+'%'
+             +(confInfo.diversity.volDispersa
+                ? ' — evidencia real de que se vivieron condiciones de mercado distintas, no solo fechas distintas'
+                : ' — todavía parecen mercados con un caracter de movimiento similar, aunque las fechas sean distintas'))
+          : '')
+      +'. '+(confInfo.diversity.nivel!=='alta'
+          ? 'Para subir la confianza real —no solo acumular ciclos del mismo tramo— conviene subir historiales de épocas distintas del oro (meses o trimestres diferentes) que ademas hayan tenido un movimiento de mercado realmente distinto, no solo fechas distintas.'
+          : 'Ya cubres varias épocas con condiciones de mercado realmente distintas, lo cual hace la proyección más robusta ante cambios de carácter del oro.')
+      );
   $('insight').innerHTML=insight;
 
   // ---- objetivo financiero ----
@@ -1608,7 +1766,7 @@ function render(){
   // ---- sugerencias: que lote hace falta para cada objetivo ----
   const sugg = (el, html) => { el.innerHTML = html; el.style.display = html?'block':'none'; };
   if(goalDaily>0){
-    const s = solveLotForDailyProfit(goalDaily, pAn, cyclesPerDayFinal);
+    const s = solveLotForDailyProfit(goalDaily, pAn, cyclesPerDayFinal, undefined, undefined, undefined, hourlyAdj);
     if(s.status==='unreachable'){
       sugg($('suggDaily'), 'No alcanzable ajustando solo el lote con este capital: el máximo posible es <b>$'+s.ev.toFixed(2)+'/día</b> (lote ≈'+s.bestLot.toFixed(3)+'). Prueba con más capital, más multiplicador, o más distancia de TP.');
     } else {
@@ -1618,7 +1776,7 @@ function render(){
 
   if(goalMonthly>0){
     const targetDailyFromMonthly = goalMonthly/21;
-    const s = solveLotForDailyProfit(targetDailyFromMonthly, pAn, cyclesPerDayFinal);
+    const s = solveLotForDailyProfit(targetDailyFromMonthly, pAn, cyclesPerDayFinal, undefined, undefined, undefined, hourlyAdj);
     if(s.status==='unreachable'){
       sugg($('suggMonthly'), 'No alcanzable ajustando solo el lote: el máximo posible es ≈$'+(s.ev*21).toFixed(0)+'/mes (lote ≈'+s.bestLot.toFixed(3)+').');
     } else {
