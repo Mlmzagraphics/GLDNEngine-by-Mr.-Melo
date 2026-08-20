@@ -23,7 +23,7 @@
     --ink:#0d0904; --panel:#26200f; --panel2:#312917; --edge:#584a26;
     --bone:#fbf3e6; --muted:#cdbfa3; --faint:#9c8f76;
     --gold:#ffb72b; --gold-deep:#c98a1f; --gold-dim:#7a6030; --gold-bright:#ffd479;
-    --crimson:#a89a7a; --crimson-deep:#6b5f47; --ok:#8a9a4f;
+    --danger:#a89a7a; --danger-deep:#6b5f47; --ok:#8a9a4f;
     --glow:rgba(255,183,43,.72); --glow-soft:rgba(255,183,43,.42); --glow-white:rgba(233,242,251,.30);
     --lift: 0 1px 0 rgba(180,220,255,.09) inset, 0 0 0 1px rgba(255,183,43,.20),
       0 30px 70px -16px rgba(2,6,20,.85), 0 12px 28px -8px rgba(4,10,26,.65),
@@ -73,10 +73,20 @@
       line-height:1.3;text-align:right}
   }
   .context{display:flex;flex-wrap:wrap;gap:6px}
+  .context-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
   .chip{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);
-    border:1px solid rgba(29,42,59,.7);border-radius:8px;padding:5px 10px;background:var(--panel2);white-space:nowrap;
+    border:1px solid var(--gold-dim);border-radius:8px;padding:5px 10px;background:var(--panel2);white-space:nowrap;
     text-shadow:0 0 8px rgba(157,178,202,.16);box-shadow:var(--lift-sm)}
   .chip b{color:var(--gold);font-weight:500;text-shadow:0 0 10px var(--glow-soft)}
+  .export-chip{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.02em;
+    color:var(--ink);border:1px solid var(--gold-bright);border-radius:8px;padding:5px 12px;white-space:nowrap;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));cursor:pointer;
+    box-shadow:var(--lift-sm),0 0 18px -3px rgba(255,183,43,.55);
+    transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
+  .export-chip:hover{filter:brightness(1.07);transform:translateY(-1px);box-shadow:var(--lift-sm),0 0 24px -3px rgba(255,183,43,.75)}
+  .export-chip:active{transform:translateY(0);filter:brightness(.95)}
+  .export-chip:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px}
+  @media(max-width:480px){.context-row{justify-content:flex-start}}
 
   .hero{background:
       radial-gradient(130% 65% at 12% -12%, rgba(255,255,255,.07), transparent 55%),
@@ -157,7 +167,7 @@
   input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:2px;background:var(--gold);
     cursor:pointer;border:3px solid var(--ink);box-shadow:0 0 0 1px var(--gold-deep),0 0 14px var(--glow)}
 
-  select,input[type=number]{width:100%;background:var(--panel2);border:1px solid rgba(29,42,59,.7);
+  select,input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--gold-dim);
     color:var(--bone);font-family:"IBM Plex Mono",monospace;font-size:14.5px;padding:11px 12px;
     border-radius:14px;outline:none;-webkit-appearance:none;appearance:none;box-shadow:var(--well)}
 
@@ -184,6 +194,9 @@
     color:var(--muted);cursor:pointer;transition:.12s;user-select:none;-webkit-tap-highlight-color:transparent;
     box-shadow:var(--lift-sm)}
   .seg:active{transform:scale(.98)}
+  .seg:hover{background:rgba(255,183,43,.10);border-color:rgba(255,183,43,.35);color:var(--bone)}
+  .seg.on:hover{background:var(--gold-bright);box-shadow:var(--lift-sm),0 0 24px var(--glow)}
+  .seg:focus-visible,.reset:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px}
   .seg.on{background:var(--gold);color:#241a05;border-color:var(--gold);font-weight:600;
     box-shadow:var(--lift-sm), 0 0 18px var(--glow)}
 
@@ -201,6 +214,7 @@
     color:var(--gold);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;
     text-transform:uppercase;min-height:46px;border-radius:15px;cursor:pointer;transition:.12s;
     -webkit-tap-highlight-color:transparent;text-shadow:0 0 10px var(--glow-soft);box-shadow:var(--lift-sm)}
+  .reset:hover{background:rgba(255,183,43,.06);border-color:var(--gold-dim)}
   .reset:active{background:rgba(255,183,43,.08);box-shadow:0 0 18px var(--glow-soft)}
 
   .chart-card{padding:18px 14px 8px}
@@ -223,7 +237,7 @@
     text-align:right;padding:10px 12px;letter-spacing:.05em;font-size:9.5px;text-transform:uppercase;
     border-bottom:1px solid var(--edge);white-space:nowrap}
   th:first-child,td:first-child{text-align:left}
-  td{padding:9px 12px;text-align:right;border-bottom:1px solid rgba(29,42,59,.6);color:var(--bone);
+  td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--edge);color:var(--bone);
     white-space:nowrap;text-shadow:0 0 7px rgba(233,242,251,.07)}
   tr:last-child td{border-bottom:none}
   td.dim{color:var(--faint);text-shadow:none}
@@ -248,6 +262,9 @@
     text-shadow:0 0 18px var(--glow-white)}
   .fcell .v.accent{color:var(--gold);text-shadow:0 0 22px var(--glow),0 0 44px rgba(255,183,43,.14)}
   .fcell .sub{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4}
+  @keyframes valuePulse{0%{filter:brightness(1.55) saturate(1.15);transform:scale(1.025)}100%{filter:brightness(1) saturate(1);transform:scale(1)}}
+  .flash-update{animation:valuePulse .5s cubic-bezier(.22,.61,.36,1)}
+  @media(prefers-reduced-motion:reduce){.flash-update{animation:none}}
 
   .insight{background:rgba(255,183,43,.045);border:1px solid var(--edge);border-left:2px solid var(--gold);
     border-radius:0 8px 8px 0;padding:13px 16px;margin-top:14px;font-size:12px;color:var(--muted);line-height:1.55}
@@ -299,7 +316,7 @@
   .wrap{max-width:100%}
   .dual-grid{grid-template-columns:1fr !important}
   .signature{position:static !important;display:inline-block;margin-bottom:10px;background:transparent !important;border:none;box-shadow:none}
-  .reset{display:none}
+  .reset,.export-chip{display:none}
   details.adv{display:none} /* supuestos avanzados: no aportan a un reporte de resultados */
   .grid{grid-template-columns:1fr !important;} /* una sola columna: evita que se corte contenido en la hoja */
 
@@ -360,9 +377,9 @@
         <div class="eyebrow">Modelo cuantitativo · Gestión de capital</div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-      <button type="button" id="exportPdf" class="reset" style="width:auto;margin:0;padding:9px 16px">⭳ Exportar a PDF</button>
+    <div class="context-row">
       <div class="context" id="context"></div>
+      <button type="button" id="exportPdf" class="export-chip">⭳ Exportar a PDF</button>
     </div>
   </header>
 
@@ -382,7 +399,7 @@
         <div class="fcell"><div class="k">DD esperado</div><div class="v" id="fDD">$0</div><div class="sub">pérdida flotante promedio al resolver</div></div>
         <div class="fcell"><div class="k">Máximo margen usado</div><div class="v" id="fMargin">$0</div><div class="sub" id="fMarginSub">promedio ponderado</div></div>
         <div class="fcell"><div class="k">Número medio de operaciones</div><div class="v accent" id="fNOrders">0</div><div class="sub">por ciclo</div></div>
-        <div class="fcell"><div class="k">Mayor basket (percentil 95)</div><div class="v accent" id="fMayor">0</div><div class="sub">órdenes en el 5% de ciclos más profundos</div></div>
+        <div class="fcell"><div class="k">Mayor basket (percentil 95)</div><div class="v accent" id="fMayor">0</div><div class="sub">órdenes en el 5% de ciclos más profundos, hasta el stop-out real del bróker (sin freno propio)</div></div>
       </div>
     </div>
 
@@ -392,7 +409,7 @@
         <div class="fcell">
           <div class="k">Capital mínimo necesario</div>
           <div class="v accent" id="fCapMin">$0</div>
-          <div class="sub">para P(ruina) ≤ <span id="fCapMinTarget">1%</span> por ciclo</div>
+          <div class="sub">para que un ciclo tenga ≤ <span id="fCapMinTarget">1%</span> de probabilidad de arruinar la cuenta</div>
         </div>
         <div class="fcell">
           <div class="k">Probabilidad de supervivencia</div>
@@ -416,7 +433,7 @@
       <div class="subhead">Techo determinista (escenario extremo, peor caso)</div>
       <div class="fgrid fgrid3">
         <div class="fcell"><div class="k">Techo de órdenes</div><div class="v gold" id="sOrders">0</div><div class="sub" id="sOrdersSub">de 50 permitidas</div></div>
-        <div class="fcell"><div class="k">Excursión al stop-out</div><div class="v" id="sStopX">$0</div><div class="sub">movimiento del oro en contra</div></div>
+        <div class="fcell"><div class="k">Excursión al stop-out</div><div class="v" id="sStopX">$0</div><div class="sub" id="sStopXSub">movimiento del oro en contra</div></div>
         <div class="fcell"><div class="k">Pérdida en stop-out</div><div class="v" id="sLoss">$0</div><div class="sub" id="sLossSub">% del capital</div></div>
       </div>
     </div>
@@ -487,9 +504,10 @@
         <div class="field">
           <label>Bróker / tipo de cuenta</label>
           <select id="broker">
-            <option value="vt_ecn_cent">VT Markets · ECN Cent</option>
-            <option value="vt_ecn_std">VT Markets · ECN Estándar</option>
-            <option value="vt_stp">VT Markets · STP</option>
+            <option value="vt_std_stp">VT Markets · Standard STP</option>
+            <option value="vt_raw_ecn">VT Markets · RAW ECN</option>
+            <option value="vt_cent_stp">VT Markets · Cent STP</option>
+            <option value="vt_cent_ecn">VT Markets · Cent ECN</option>
             <option value="custom">Otro / Personalizado</option>
           </select>
           <p class="hint" id="brokerHint"></p>
@@ -522,16 +540,17 @@
         </div>
 
         <div class="field">
-          <label>Contrato · oz por 1.0 lote <span class="val" id="lOz">1.0</span></label>
+          <label>Contrato · oz por 1.0 lote <span class="val" id="lOz">100.0</span></label>
           <div class="segs" id="ozSegs">
-            <button type="button" class="seg on" data-oz="1">Cent · 1 oz</button>
-            <button type="button" class="seg" data-oz="100">Estándar · 100 oz</button>
+            <button type="button" class="seg" data-oz="1">Cent · 1 oz</button>
+            <button type="button" class="seg on" data-oz="100">Estándar · 100 oz</button>
           </div>
+          <p class="hint" style="margin-top:4px">¿Otro bróker con un tamaño de contrato distinto? Escríbelo directo: <input type="number" id="ozCustom" value="100" min="0.001" step="0.001" style="width:80px;text-align:right;padding:4px 6px;font-size:13px;margin-left:4px" inputmode="decimal"> oz/lote — mira la ficha de especificación del símbolo en tu bróker.</p>
         </div>
 
         <div class="field">
           <label>Precio del oro (USD) <span class="val" id="lPrice">$4.000</span></label>
-          <input type="range" id="price" min="1500" max="6000" step="50" value="4000">
+          <input type="range" id="price" min="1500" max="50000" step="100" value="4000">
         </div>
 
         <div class="field" id="horaField">
@@ -603,15 +622,20 @@
         <button type="button" class="reset" id="reset">↺ Restaurar parámetros</button>
 
         <details class="adv">
-          <summary>Supuestos del modelo probabilístico</summary>
+          <summary>Parámetros avanzados: bróker, margen y comisión</summary>
           <div class="field">
-            <label>Stop-out % (solo bróker "Personalizado") <span class="val" id="lSo">50%</span></label>
-            <input type="range" id="so" min="0" max="100" step="5" value="50">
+            <label>Stop-out % (solo bróker "Personalizado") <span class="val" id="lSo">20%</span></label>
+            <input type="range" id="so" min="0" max="100" step="5" value="20">
+          </div>
+          <div class="field">
+            <label>Nivel de margen mínimo de tu freno (EA) <span class="val" id="lMargenFreno">20%</span></label>
+            <input type="range" id="margenFreno" min="5" max="100" step="1" value="20">
+            <p class="hint" style="margin-top:4px">Nivel de margen al que el EA deja de enviar órdenes nuevas — el mismo número que el Stop Out real de tu bróker, sin colchón añadido. El EA lo lee automáticamente de tu cuenta en cada tick; este slider solo sirve para previsualizar cuántas órdenes aguanta tu cuenta antes de quedarse sin margen.</p>
           </div>
           <div class="field">
             <label>Comisión por lote (USD, round-turn) <span class="val" id="lComm">$6,00</span></label>
             <input type="range" id="commission" min="0" max="1" step="0.01" value="0.06">
-            <p class="hint">Calibrada con tu historial real de cuenta (32240565): $0,06/lote confirmado en 4.637 órdenes sobre 14,5 días, sin excepción. (Nota: en una revisión anterior de este simulador se mostró por error $6,00 — confusión de unidades USC/USD, ya corregida.)</p>
+            <p class="hint">Calibrada con historial real: $0,06/lote, confirmado en miles de órdenes reales sin excepción. (Antes se mostraba por error $6,00 — confusión de unidades USC/USD, ya corregida.)</p>
           </div>
           <div class="field">
             <label>Objetivo de riesgo para capital mínimo
@@ -638,7 +662,7 @@
           <h3>Escenario determinista extremo</h3>
           <div class="legend">
             <span><i style="background:var(--gold)"></i>Equity</span>
-            <span><i style="background:var(--crimson)"></i>Umbral stop-out</span>
+            <span><i style="background:var(--danger)"></i>Umbral stop-out</span>
           </div>
         </div>
 
@@ -652,8 +676,8 @@
         <div class="tbl-scroll">
           <table>
             <thead><tr>
-              <th>Orden</th><th>Mov. $</th><th>Lote</th><th>Lotes ac.</th>
-              <th>Margen us.</th><th>P. flot.</th><th>Equity</th><th>Nivel %</th><th>P(TP aquí)</th>
+              <th>Orden</th><th>Movimiento ($)</th><th>Lote</th><th>Lotes acum.</th>
+              <th>Margen usado</th><th>Pérdida flotante</th><th>Equity</th><th>Nivel margen</th><th>Prob. TP aquí</th>
             </tr></thead>
             <tbody id="tbody"></tbody>
           </table>
@@ -863,13 +887,18 @@ function AN_capitalMinimo(targetRuinPct,p,lo,hi,iters){
 }
 
 // ================= BRÓKERES =================
+// Nombres iguales a los 4 tipos de cuenta reales de VT Markets (Standard STP / RAW ECN / Cent STP /
+// Cent ECN), tal como aparecen en su formulario de apertura de cuenta. Las variantes "Swap-Free"
+// no se listan aparte porque solo cambian el cobro de swap, no el margen ni el stop-out.
 const BROKERS={
-  vt_ecn_cent:{name:'VT Markets · ECN Cent', oz:1, so:50, cent:true,
-    hint:'Verificado: 1 lote cent = 0.01 lote estándar = 1 oz. Stop-out 50%, margin call 80%.'},
-  vt_ecn_std:{name:'VT Markets · ECN Estándar', oz:100, so:50, cent:false,
-    hint:'Cuenta estándar: 1 lote = 100 oz. Stop-out 50%, margin call 80%.'},
-  vt_stp:{name:'VT Markets · STP', oz:100, so:20, cent:false,
-    hint:'Cuenta STP: 1 lote = 100 oz. Stop-out 20%, margin call 50%.'},
+  vt_std_stp:{name:'VT Markets · Standard STP', oz:100, so:20, cent:false,
+    hint:'Cuenta estándar: 1 lote = 100 oz. Stop-out 20%.'},
+  vt_raw_ecn:{name:'VT Markets · RAW ECN', oz:100, so:20, cent:false,
+    hint:'Cuenta estándar, spread bajo + comisión: 1 lote = 100 oz. Stop-out 20% (igual que STP).'},
+  vt_cent_stp:{name:'VT Markets · Cent STP', oz:1, so:20, cent:true,
+    hint:'Cuenta cent: 1 lote cent = 1 oz. Stop-out 20%.'},
+  vt_cent_ecn:{name:'VT Markets · Cent ECN', oz:1, so:20, cent:true,
+    hint:'Cuenta cent, spread bajo + comisión: 1 lote cent = 1 oz. Stop-out 20% (igual que STP).'},
   custom:{name:'Personalizado', cent:false,
     hint:'Ajusta a mano el contrato (oz/lote) según la ficha de tu bróker.'}
 };
@@ -891,7 +920,7 @@ const EMP_DEFAULT = {
   tpClassicPipsRef: 21,
   sources: 1,                 // cuantos historiales distintos se han combinado
   ranges: [{start: Date.parse('2026-07-02T07:46:27'), end: Date.parse('2026-07-16T19:39:01'),
-            label: 'Historial de fábrica (cuenta 32240565)'}],
+            label: 'Historial de fábrica'}],
   sumProfitUSD: 145.9952,
   sumProfitSqUSD: 4456.6802,
   maxLosingStreak: 2,
@@ -1609,11 +1638,25 @@ function AN_hybridForecast(p, cyclesPerDayOverride, hourlyAdjustment){
 }
 
 // ================= ESTADO =================
-const S={capital:1000,leverage:100,lote:0.01,mult:1.20,gridPips:10,tpClasico:21,price:4000,oz:1,so:50,
-  maxo:50,broker:'vt_ecn_cent',volKey:'media',ruinTarget:1,commission:0.06,horaInicio:0,horaFin:11};
+const S={capital:1000,leverage:100,lote:0.01,mult:1.20,gridPips:10,tpClasico:21,price:4000,oz:100,so:20,margenFreno:20,
+  maxo:50,broker:'vt_std_stp',volKey:'media',ruinTarget:1,commission:0.06,horaInicio:0,horaFin:22};
 const $=id=>document.getElementById(id);
 const nf=n=>Math.round(n).toLocaleString('es-ES');
 const nf2=n=>n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+// Destella brevemente cualquier cifra grande (.v) que haya cambiado respecto al render anterior --
+// asi el ojo detecta de un vistazo cuales resultados se movieron al tocar un parametro, sin animar
+// nada que no haya cambiado de verdad.
+function flashChangedValues(){
+  document.querySelectorAll('.stat .v, .fcell .v').forEach(el=>{
+    const now=el.textContent;
+    if(el.dataset.prev!==undefined && el.dataset.prev!==now){
+      el.classList.remove('flash-update');
+      void el.offsetWidth; // fuerza reflow para poder reiniciar la animacion aunque ya estuviera puesta
+      el.classList.add('flash-update');
+    }
+    el.dataset.prev=now;
+  });
+}
 
 function readInputs(){
   S.capital=Math.max(1,+$('capital').value||0); S.lote=+$('lote').value; S.mult=+$('mult').value;
@@ -1633,22 +1676,23 @@ function syncLabels(){
   const hAdjTxt = hAdjHint!==0
     ? (' Estas horas rinden '+(hAdjHint>=0?'$'+hAdjHint.toFixed(3)+' mejor':'−$'+Math.abs(hAdjHint).toFixed(3)+' peor')+' por ciclo que el promedio del día completo (según tu historial real) — ya incluido en el profit esperado.')
     : '';
-  $('horasHint').textContent='Cobertura de la actividad real observada: '+(cov*100).toFixed(1)+'% del día ('+nf(EMP.cyclesPerDay*cov)+' ciclos/día calibrados). Tu preset actual usa 00:00–11:00.'+hAdjTxt;
+  $('horasHint').textContent='Cobertura de la actividad real observada: '+(cov*100).toFixed(1)+'% del día ('+nf(EMP.cyclesPerDay*cov)+' ciclos/día calibrados). Tu preset actual usa '+String(S.horaInicio).padStart(2,'0')+':00–'+hf24+'.'+hAdjTxt;
   $('lGrid').textContent=S.gridPips+' pips';
   $('lTp').textContent=S.tpClasico+' pips';
   $('lPrice').textContent='$'+nf(S.price);
-  $('lOz').textContent=S.oz==1?'1.0':'100';
+  $('lOz').textContent=S.oz%1===0?S.oz.toFixed(1):S.oz.toFixed(3);
   $('lMax').textContent=S.maxo;
   $('lSo').textContent=S.so+'%';
+  $('lMargenFreno').textContent=S.margenFreno+'%';
   $('gridHint').textContent='≈ $'+(S.gridPips*0.10).toFixed(2).replace('.',',')+' de movimiento del oro entre cada orden.';
   $('tpHint').textContent='≈ $'+(S.tpClasico*0.10).toFixed(2).replace('.',',')+' de retroceso para cerrar el canasto (órdenes 1-5).';
   [...$('capChips').children].forEach(c=>c.classList.toggle('on',+c.dataset.cap===S.capital));
   const cent=(S.oz==1);
   $('centHint').textContent=cent?('En cuenta cent se muestra como '+nf(S.capital*100)+' USC en la plataforma.'):'';
-  const b=BROKERS[S.broker] || BROKERS['vt_ecn_cent'];
+  const b=BROKERS[S.broker] || BROKERS['vt_std_stp'];
   $('context').innerHTML=
     '<span class="chip"><b>'+b.name+'</b></span>'+
-    '<span class="chip">Contrato: <b>'+(S.oz==1?'1 oz':'100 oz')+'/lote</b></span>'+
+    '<span class="chip">Contrato: <b>'+(S.oz%1===0?S.oz:S.oz.toFixed(3))+' oz/lote</b></span>'+
     '<span class="chip">Stop-out <b>'+S.so+'%</b></span>'+
     '<span class="chip">Capital <b>$'+nf(S.capital)+'</b></span>'+
     '<span class="chip">Apalancamiento <b>1:'+nf(S.leverage)+'</b></span>'+
@@ -1677,6 +1721,12 @@ function render(){
     mult:S.mult,maxOrdenes:S.maxo,gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,
     hybridStart:5, sigmaDay, commissionPerLot:S.commission};
   const f=AN_fullForecast(pAn);            // teorico: riesgo/margen/supervivencia (conservador)
+  // --- segundo escenario: mismo motor teorico, pero deteniendo la escalada en el umbral de
+  // tu freno de margen (NivelMargenMinimoPct en el EA) en vez de en el stop-out real del broker.
+  // Es la misma logica de AN_buildLevels/AN_stopoutX, solo que "so" aqui representa el nivel de
+  // margen en el que TU decides frenar, no el nivel en el que el broker te cerraria a la fuerza.
+  const pAnFreno=Object.assign({},pAn,{stopOutPct:S.margenFreno});
+  const fFreno=AN_fullForecast(pAnFreno);
   const capMin=AN_capitalMinimo(S.ruinTarget,pAn);
   const volMult = {baja:0.5, media:1.0, alta:2.0}[S.volKey];
   const coverage = hourlyCoverage(S.horaInicio, S.horaFin);
@@ -1729,7 +1779,7 @@ function render(){
 
   // ---- insight dinamico ----
   let insight='<b>Metodología:</b> este simulador combina dos motores. El <b>riesgo</b> (probabilidad de ruina, capital mínimo, margen, supervivencia) usa un modelo teórico conservador que asume mercado sin tendencia — no le regala ninguna ventaja a la estrategia, apropiado para dimensionar capital. '
-    +'El <b>comportamiento</b> (profit esperado, operaciones por ciclo, mayor basket, frecuencia diaria) usa la <b>distribución real observada en tu cuenta</b> (32240565), no un supuesto neutro — porque el oro real, en tu horario e instrumento, no se comporta como una moneda justa.'
+    +'El <b>comportamiento</b> (profit esperado, operaciones por ciclo, mayor basket, frecuencia diaria) usa la <b>distribución real observada en tu historial subido</b>, no un supuesto neutro — porque el oro real, en tu horario e instrumento, no se comporta como una moneda justa.'
     +'<br><br><b>Calibrado con historial real</b> (14,5 días, 1.521 ciclos reconstruidos, 4.637 órdenes): '
     +'órdenes medias por ciclo (el modelo predice '+h.EOrders.toFixed(2)+'), '+nf(EMP.cyclesPerDay)+' ciclos/día medidos directamente, comisión confirmada en $'+EMP.commissionPerLot.toFixed(2)+'/lote, calibrado con '+EMP.sources+' historial(es) subido(s) ('+EMP.totalDays.toFixed(1)+' días, '+nf(EMP.totalCycles)+' ciclos en total). '
     +(h.calibracionValida?'':'<b>Aviso:</b> cambiaste la distancia entre órdenes o el TP clásico respecto al historial (10 y 21 pips) — la calibración de frecuencia/operaciones puede ya no ser representativa. ')
@@ -1798,8 +1848,22 @@ function render(){
 
   // ---- detalle determinista (grafico + tabla, con P(TP aqui) del motor analitico) ----
   $('sOrders').textContent=r.ordersOpened;
-  $('sOrdersSub').textContent='de '+S.maxo+' permitidas';
+  {
+    let sub='de '+S.maxo+' permitidas, hasta el stop-out real de tu bróker ('+S.so+'%, sin ningún freno propio)';
+    if(S.margenFreno<S.so){
+      sub+='. ⚠ tu freno de margen ('+S.margenFreno+'%) está por debajo de ese stop-out real — no protegería nada, el bróker cortaría antes.';
+    } else if(fFreno.Nreal < r.ordersOpened){
+      sub+='. Con tu freno de margen ('+S.margenFreno+'%) puesto, el EA se frenaría antes, en el nivel '+fFreno.Nreal+'.';
+    }
+    $('sOrdersSub').textContent=sub;
+  }
   $('sStopX').textContent=(r.stopX&&isFinite(r.stopX))?'$'+r.stopX.toFixed(1):'∞';
+  if(r.stopX&&isFinite(r.stopX)){
+    const pips=r.stopX/0.10;
+    $('sStopXSub').textContent='el oro tendría que moverse '+nf(pips)+' pips en tu contra, sin ningún respiro, para agotar el margen — en ese punto el bróker empieza a cerrar posiciones a mercado, no a tu TP.';
+  } else {
+    $('sStopXSub').textContent='con tu capital y apalancamiento actuales, ni el peor escenario en línea recta agota el margen dentro de las órdenes permitidas.';
+  }
   const lossSO=r.floatingAtSO||0;
   $('sLoss').textContent='$'+nf(lossSO);
   $('sLossSub').textContent=(S.capital>0?Math.round(lossSO/S.capital*100):0)+'% del capital';
@@ -1807,11 +1871,15 @@ function render(){
   try{drawTable(r,f);}catch(e){}
   $('cause').innerHTML='<b>Techo determinista:</b> '+r.ordersOpened+' órdenes antes de un movimiento en línea recta de $'+
     (r.stopX&&isFinite(r.stopX)?r.stopX.toFixed(1):'∞')+' (escenario extremo, sin reversión).';
-  $('foot').innerHTML='El panel superior es el pronóstico probabilístico (asume oro sin tendencia direccional, movimiento tipo paseo aleatorio). '
-    +'Este panel inferior muestra el escenario determinista extremo: recorrido adverso en línea recta, sin ningún retroceso. '
-    +'SL individual ($100 por orden) queda por detrás del umbral de stop-out en ambos modelos. Total de lotes en el escenario extremo: <b>'+r.totalLots+'</b>. '
-    +'Nota: el preset vigente limita el EA a operar de 00:00 a 11:00 y cierra posiciones fuera de ese horario; este modelo aún asume operación continua (24h) y no incorpora ese cierre forzado por horario.';
+  {
+    const hf24b = S.horaFin===24?'24:00':String(S.horaFin).padStart(2,'0')+':00';
+    $('foot').innerHTML='El panel superior es el pronóstico probabilístico (asume oro sin tendencia direccional, movimiento tipo paseo aleatorio). '
+      +'Este panel inferior muestra el escenario determinista extremo: recorrido adverso en línea recta, sin ningún retroceso. '
+      +'SL individual ($100 por orden) queda por detrás del umbral de stop-out en ambos modelos. Total de lotes en el escenario extremo: <b>'+r.totalLots+'</b>. '
+      +'Nota: tu preset limita el EA a operar de '+String(S.horaInicio).padStart(2,'0')+':00 a '+hf24b+' y cierra posiciones fuera de ese horario; este modelo aún asume operación continua (24h) y no incorpora ese cierre forzado por horario.';
+  }
 
+  flashChangedValues();
   saveState();
 }
 
@@ -1824,9 +1892,15 @@ function chartSize(){
 function drawChart(r,capital){
   const {W,H,mobile}=chartSize();
   const fs=mobile?12:11, fsSmall=mobile?11:10;
-  const mL=mobile?46:54, mR=14, mT=18, mB=mobile?40:36;
+  const mL=mobile?66:76, mR=14, mT=18, mB=mobile?40:36;
   const plotW=W-mL-mR, plotH=H-mT-mB, xEnd=r.xEnd||1, yMax=capital||1;
   const X=x=>mL+plotW*(x/xEnd), Y=val=>mT+plotH*(1-Math.max(0,Math.min(val,yMax))/yMax);
+  // Registro de posiciones de etiquetas de texto ya colocadas en esta gráfica: cualquier
+  // etiqueta nueva se comprueba contra todas las anteriores antes de dibujarse, para blindar
+  // contra solapamientos en cualquier combinación de parámetros (no solo los casos ya vistos).
+  const labelPositions=[];
+  const cabeLejos=(x,y,minDist)=>labelPositions.every(p=>Math.hypot(x-p.x,y-p.y)>minDist);
+  const registrarEtiqueta=(x,y)=>labelPositions.push({x,y});
   let s='';
   for(let i=0;i<=4;i++){const val=yMax*i/4,y=Y(val);
     s+=`<line x1="${mL}" y1="${y.toFixed(1)}" x2="${W-mR}" y2="${y.toFixed(1)}" stroke="#2e2415"/>`;
@@ -1835,12 +1909,24 @@ function drawChart(r,capital){
   for(let i=0;i<=nx;i++){const xv=xEnd*i/nx,x=X(xv);
     s+=`<text x="${x.toFixed(1)}" y="${H-14}" text-anchor="middle" font-family="IBM Plex Mono" font-size="${fsSmall}" fill="#9c8f76">$${xv.toFixed(xEnd<12?1:0)}</text>`;}
   s+=`<text x="${mL+plotW/2}" y="${H-2}" text-anchor="middle" font-family="IBM Plex Sans" font-size="${fsSmall}" fill="#cdbfa3">movimiento del oro en contra (USD)</text>`;
+  // Titulo del eje Y en su propia columna, girado -90, separado del area de datos a proposito:
+  // un titulo horizontal arriba a la izquierda siempre cae encima del primer punto (que por
+  // definicion empieza cerca de x=0, y=maximo) -- por eso antes se solapaba con la etiqueta "#1".
+  s+=`<text x="11" y="${(mT+plotH/2).toFixed(1)}" text-anchor="middle" font-family="IBM Plex Sans" font-size="${fsSmall}" fill="#cdbfa3" transform="rotate(-90 11 ${(mT+plotH/2).toFixed(1)})">Equity de la cuenta ($)</text>`;
 
   const sx=r.stopX;
   if(sx&&isFinite(sx)&&sx<xEnd){const xs=X(sx);
     s+=`<rect x="${xs.toFixed(1)}" y="${mT}" width="${(W-mR-xs).toFixed(1)}" height="${plotH}" fill="rgba(130,152,182,.13)"/>`;
-    s+=`<line x1="${xs.toFixed(1)}" y1="${mT}" x2="${xs.toFixed(1)}" y2="${mT+plotH}" stroke="var(--crimson)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
-    s+=`<text x="${xs.toFixed(1)}" y="${mT+12}" text-anchor="${sx/xEnd>0.72?'end':'middle'}" font-family="IBM Plex Mono" font-size="${fs}" font-weight="600" fill="var(--crimson)">STOP-OUT $${sx.toFixed(sx<10?1:0)}</text>`;}
+    s+=`<line x1="${xs.toFixed(1)}" y1="${mT}" x2="${xs.toFixed(1)}" y2="${mT+plotH}" stroke="var(--danger)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    const stopOutTxt=`STOP-OUT $${sx.toFixed(sx<10?1:0)}`, stopOutEnd=sx/xEnd>0.72;
+    s+=`<text x="${xs.toFixed(1)}" y="${mT+12}" text-anchor="${stopOutEnd?'end':'middle'}" font-family="IBM Plex Mono" font-size="${fs}" font-weight="600" fill="var(--danger)">${stopOutTxt}</text>`;
+    // Registrar el CENTRO real del texto, no el punto de anclaje: con text-anchor="end" el
+    // anclaje es el borde derecho, y el texto (bastante ancho, "STOP-OUT $XXX") se extiende
+    // mucho hacia la izquierda de ahi -- medir distancias desde el anclaje subestimaba cuanto
+    // ocupaba realmente en pantalla.
+    const stopOutWidth=stopOutTxt.length*fs*0.6;
+    const stopOutCenterX=stopOutEnd?(xs-stopOutWidth/2):xs;
+    registrarEtiqueta(stopOutCenterX,mT+12);}
 
   let area=`M ${X(0)} ${Y(r.curve[0].eq)}`;
   r.curve.forEach(pt=>{area+=` L ${X(pt.x).toFixed(1)} ${Y(pt.eq).toFixed(1)}`;});
@@ -1856,8 +1942,14 @@ function drawChart(r,capital){
     let a=0,b=0;for(let j=0;j<=i;j++){a+=orders[j].oz;b+=orders[j].oz*orders[j].e;}
     const eq=capital-(a*o.e-b), cx=X(o.e), cy=Y(eq);
     s+=`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2" fill="var(--ink)" stroke="var(--gold)" stroke-width="1.6"/>`;
-    if(i===0||i===orders.length-1)
-      s+=`<text x="${cx.toFixed(1)}" y="${(cy-9).toFixed(1)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="${fsSmall}" fill="var(--gold-deep)">#${i+1}</text>`;
+    // Solo el primer y el ultimo pedido llevan etiqueta de texto ("#1", "#N"), y solo si cae lo
+    // bastante lejos de cualquier otra etiqueta ya colocada en esta grafica (eje Y, STOP-OUT,
+    // u otro marcador) -- en canastos muy someros varias pueden caer casi en el mismo punto.
+    const lx=cx, ly=cy-9;
+    if((i===0||i===orders.length-1) && cabeLejos(lx,ly,55)){
+      s+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="${fsSmall}" fill="var(--gold-deep)">#${i+1}</text>`;
+      registrarEtiqueta(lx,ly);
+    }
   });
   $('chart').innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+s+'</svg>';
 }
@@ -1890,11 +1982,16 @@ document.querySelectorAll('.stp').forEach(b=>b.addEventListener('click',()=>{
 }));
 $('capital').addEventListener('input',render);
 $('so').addEventListener('input',()=>{S.so=+$('so').value; setBroker('custom',false); render();});
+$('margenFreno').addEventListener('input',()=>{S.margenFreno=+$('margenFreno').value; render();});
 $('capChips').addEventListener('click',e=>{const t=e.target.closest('.qchip');if(!t)return;$('capital').value=t.dataset.cap;render();});
 $('levSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
   [...$('levSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.leverage=+t.dataset.lev;render();});
 $('ozSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
-  [...$('ozSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.oz=+t.dataset.oz;setBroker('custom',false);render();});
+  [...$('ozSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.oz=+t.dataset.oz;$('ozCustom').value=S.oz;setBroker('custom',false);render();});
+$('ozCustom').addEventListener('input',()=>{
+  const v=+$('ozCustom').value;
+  if(v>0){ S.oz=v; [...$('ozSegs').children].forEach(c=>c.classList.toggle('on', +c.dataset.oz===v)); setBroker('custom',false); render(); }
+});
 $('volSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
   [...$('volSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.volKey=t.dataset.vol;render();});
 $('ruinTargetSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
@@ -1909,8 +2006,8 @@ $('broker').addEventListener('change',e=>setBroker(e.target.value,true));
 function setBroker(key,apply){
   S.broker=key; $('broker').value=key; const b=BROKERS[key];
   if(apply){
-    if(b.oz!==undefined){S.oz=b.oz;[...$('ozSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.oz===b.oz));}
-    if(b.so!==undefined){S.so=b.so;}
+    if(b.oz!==undefined){S.oz=b.oz;[...$('ozSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.oz===b.oz)); $('ozCustom').value=b.oz;}
+    if(b.so!==undefined){S.so=b.so; $('so').value=b.so; S.margenFreno=b.so; $('margenFreno').value=b.so;}
     render();
   }
 }
@@ -1976,10 +2073,11 @@ $('reset').addEventListener('click',()=>{
   try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
 
   $('capital').value=1000;$('lote').value=0.01;$('mult').value=1.20;$('grid').value=10;$('tpClasico').value=21;
-  $('price').value=4000;$('maxo').value=50;$('so').value=50;$('commission').value=0.06;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=1;S.volKey='media';S.ruinTarget=1;
+  $('price').value=4000;$('maxo').value=50;$('so').value=20;$('margenFreno').value=20;$('commission').value=0.06;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=100;S.so=20;S.volKey='media';S.ruinTarget=1;S.margenFreno=20;
   $('goalDaily').value=0;$('goalMonthly').value=0;$('goalDD').value=0;
   [...$('levSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.lev==='100'));
-  [...$('ozSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.oz==='1'));
+  [...$('ozSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.oz==='100'));
+  $('ozCustom').value=100;
   [...$('volSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.vol==='media'));
   [...$('ruinTargetSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.rt==='1'));
   $('ruinTargetCustom').value=1;
@@ -1997,17 +2095,17 @@ $('reset').addEventListener('click',()=>{
   $('ladderTarget').value=2000;
   $('ladderResults').style.display='none';
 
-  setBroker('vt_ecn_cent',false); render();
+  setBroker('vt_std_stp',false); render();
 });
 
 // ================= MEMORIA (persiste tus ajustes entre recargas/pestañas) =================
 const STORAGE_KEY='goldenEngineState_v1';
 const INPUT_IDS=['capital','lote','mult','grid','tpClasico','price','maxo','commission',
-  'horaInicio','horaFin','goalDaily','goalMonthly','goalDD','ruinTargetCustom','broker'];
+  'horaInicio','horaFin','goalDaily','goalMonthly','goalDD','ruinTargetCustom','ozCustom','margenFreno','broker'];
 function saveState(){
   try{
     const vals={}; INPUT_IDS.forEach(id=>{const el=$(id); if(el) vals[id]=el.value;});
-    const extra={leverage:S.leverage,oz:S.oz,volKey:S.volKey,ruinTarget:S.ruinTarget,so:S.so};
+    const extra={leverage:S.leverage,oz:S.oz,volKey:S.volKey,ruinTarget:S.ruinTarget,so:S.so,margenFreno:S.margenFreno};
     localStorage.setItem(STORAGE_KEY, JSON.stringify({vals,extra}));
   }catch(e){/* almacenamiento no disponible: no pasa nada, sigue con los valores actuales */}
 }
@@ -2021,12 +2119,13 @@ function loadState(){
       if(extra.leverage){S.leverage=extra.leverage;
         [...$('levSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.lev===extra.leverage));}
       if(extra.oz){S.oz=extra.oz;
-        [...$('ozSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.oz===extra.oz));}
+        [...$('ozSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.oz===extra.oz)); $('ozCustom').value=extra.oz;}
       if(extra.volKey){S.volKey=extra.volKey;
         [...$('volSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.vol===extra.volKey));}
       if(extra.ruinTarget){S.ruinTarget=extra.ruinTarget;
         [...$('ruinTargetSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.rt===extra.ruinTarget));}
       if(extra.so!==undefined){S.so=extra.so; $('so').value=extra.so;}
+      if(extra.margenFreno!==undefined){S.margenFreno=extra.margenFreno; $('margenFreno').value=extra.margenFreno;}
     }
     if(vals.broker && BROKERS[vals.broker]) setBroker(vals.broker,false);
     return true;
@@ -2040,7 +2139,7 @@ if(window.ResizeObserver){try{new ResizeObserver(()=>{clearTimeout(rz);rz=setTim
 requestAnimationFrame(()=>requestAnimationFrame(render));
 loadCalibration();
 updateHistorySummary();
-if(!loadState()) setBroker('vt_ecn_cent',false);
+if(!loadState()) setBroker('vt_std_stp',false);
 renderLadderRows();
 render();
 </script>
