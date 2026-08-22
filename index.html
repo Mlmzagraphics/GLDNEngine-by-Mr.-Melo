@@ -166,6 +166,13 @@
     box-shadow:var(--lift-sm), 0 0 10px rgba(255,183,43,.1);text-shadow:0 0 8px var(--glow-soft)}
   .stp:active{transform:scale(.94)}
   .stp:hover{border-color:var(--gold);box-shadow:var(--lift-sm), 0 0 16px var(--glow-soft)}
+  .stp-price{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:50%;
+    border:1px solid var(--gold-dim);background:var(--panel2);color:var(--gold);
+    font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:.12s;
+    box-shadow:var(--lift-sm), 0 0 10px rgba(255,183,43,.1);text-shadow:0 0 8px var(--glow-soft)}
+  .stp-price:active{transform:scale(.94)}
+  .stp-price:hover{border-color:var(--gold);box-shadow:var(--lift-sm), 0 0 16px var(--glow-soft)}
 
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;
     background:var(--edge);border-radius:0;outline:none;padding:0}
@@ -363,6 +370,11 @@
 
   /* Solo evitamos cortes en unidades PEQUEÑAS, donde si tiene sentido */
   .stat,.fcell,.chip,.goalrow{break-inside:avoid;page-break-inside:avoid}
+  /* Un titulo de seccion nunca debe quedar solo al final de una pagina, separado del
+     contenido que titula (paso exactamente esto con "Canasto orden por orden": el titulo
+     se quedo en una pagina y la tabla entera empezo en la siguiente, sin contexto). Esto
+     obliga a que al menos el arranque del contenido lo acompañe. */
+  .card-title{break-after:avoid;page-break-after:avoid}
   /* Nota: #goalCard, #horaField y .keep-block YA NO fuerzan "no cortar" —
      con bloques de altura variable (ej. objetivo financiero con 3 sugerencias)
      esa regla podia hacer que el navegador REORDENE secciones enteras en vez
@@ -389,8 +401,14 @@
   .fcell{padding:10px 12px !important}
 
   input[type=range]{display:none} /* el valor exacto ya se ve en el numero junto al campo */
+  .horario-conector{display:none} /* quedaba huerfano en su propia linea sin los sliders a los lados */
   .stp,.qchip,.seg{cursor:default}
   .tbl-scroll{max-height:none !important;overflow:visible !important}
+  /* La tabla "Canasto orden por orden" tiene 10 columnas y llegaba justo al borde fisico de
+     la hoja sin aire. Se compacta solo para impresion, sin tocar como se ve en pantalla. */
+  .tbl-card{margin-right:2mm}
+  .tbl-card table{font-size:10px}
+  .tbl-card th,.tbl-card td{padding:6px 7px !important}
 }
 </style>
 
@@ -572,20 +590,25 @@
             <button type="button" class="seg" data-oz="1">Cent · 1 oz</button>
             <button type="button" class="seg on" data-oz="100">Estándar · 100 oz</button>
           </div>
-          <p class="hint" style="margin-top:4px">¿Otro bróker con un tamaño de contrato distinto? Escríbelo directo: <input type="number" id="ozCustom" value="100" min="0.001" step="0.001" style="width:80px;text-align:right;padding:4px 6px;font-size:13px;margin-left:4px" inputmode="decimal"> oz/lote — mira la ficha de especificación del símbolo en tu bróker.</p>
+          <p class="hint" style="margin-top:16px">Bróker personalizado con contrato diferente: <input type="number" id="ozCustom" value="100" min="0.001" step="0.001" style="width:80px;text-align:right;padding:4px 6px;font-size:13px;margin-left:4px" inputmode="decimal"> oz/lote — mira la ficha de especificación del símbolo en tu bróker.</p>
         </div>
 
         <div class="field">
-          <label>Precio del oro (USD) <span class="val" id="lPrice">$4.000</span></label>
-          <input type="range" id="price" min="1500" max="50000" step="1" value="4000">
-          <p class="hint" style="margin-top:8px;text-align:right"><input type="number" id="priceCustom" value="4000" min="1500" max="50000" step="1" style="width:110px;text-align:right;padding:6px 8px;font-size:14px;margin-right:6px" inputmode="decimal"> USD/onza</p>
+          <div class="lbl">Precio del oro (USD)
+            <span class="stepper">
+              <button type="button" class="stp-price" data-d="-50" aria-label="Bajar $50">&#9660;</button>
+              <span class="val" id="lPrice">$4.000</span>
+              <button type="button" class="stp-price" data-d="50" aria-label="Subir $50">&#9650;</button>
+            </span>
+          </div>
+          <input type="range" id="price" min="1500" max="50000" step="50" value="4000">
         </div>
 
         <div class="field" id="horaField">
           <label>Horario del EA (hora servidor) <span class="val" id="lHoras">00:00–22:00</span></label>
           <div style="display:flex;gap:10px;align-items:center">
             <input type="range" id="horaInicio" min="0" max="23" step="1" value="0" style="flex:1">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint)">a</span>
+            <span class="horario-conector" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint)">a</span>
             <input type="range" id="horaFin" min="0" max="24" step="1" value="22" style="flex:1">
           </div>
           <p class="hint" id="horasHint"></p>
@@ -744,9 +767,9 @@
     </div>
     <p class="hint" style="margin-top:-4px">El auto-cálculo busca, para cada escalón, el <b>lote más grande</b> que aún mantenga al menos este techo de operaciones antes de un stop-out en el peor escenario (línea recta, sin retroceso) — usando el multiplicador que pongas en cada fila.</p>
 
-    <div id="ladderRows"></div>
     <button type="button" id="ladderAutoFill" class="reset" style="margin:8px 0">⚙ Auto-calcular lotes según el techo</button>
     <button type="button" id="ladderAddRow" class="reset" style="margin-bottom:8px;border-style:dashed">+ Añadir escalón</button>
+    <div id="ladderRows"></div>
     <button type="button" id="ladderSimulate" class="reset" style="margin-bottom:8px">▶ Simular plan de escalado</button>
 
     <div id="ladderResults" style="display:none">
@@ -1518,24 +1541,88 @@ function drawLadderChart(media){
   const w=Math.max(280, el.clientWidth||400);
   const mobile=w<560;
   const H=mobile?Math.round(w*0.6):Math.min(260,Math.round(w*0.36));
-  const mL=mobile?50:58, mR=14, mT=14, mB=mobile?32:28;
+  const mL=mobile?58:70, mR=14, mT=14, mB=mobile?38:34;
   const plotW=w-mL-mR, plotH=H-mT-mB;
   const pts=media.milestones.filter(m=>!m.unreachable);
   if(pts.length<1){ el.innerHTML=''; return; }
+  const today=new Date();
   const maxDay=Math.max(pts[pts.length-1].day,1);
   const maxCap=Math.max(...pts.map(p=>p.capital));
   const X=d=>mL+plotW*(d/maxDay), Y=c=>mT+plotH*(1-c/maxCap);
+  // Formato inteligente del tiempo: dias si el plan es corto, meses si es de varios meses,
+  // anos si se extiende mas de 2 anos -- para que el eje sea legible sea cual sea la duracion.
+  let unidadEje, aDias;
+  if(maxDay<=90){ unidadEje='d'; aDias=1; }
+  else if(maxDay<=730){ unidadEje='m'; aDias=30; }
+  else { unidadEje='a'; aDias=365; }
+  const fmtEje=d=>{
+    const v=d/aDias;
+    return (Number.isInteger(v)?v:v.toFixed(1))+unidadEje;
+  };
+  const fmtCapTip=(usd)=>ladderUnit==='usc'?(nf(Math.round(usd*100))+' USC'):('$'+nf(usd));
   let s='';
   for(let i=0;i<=4;i++){
     const val=maxCap*i/4, y=Y(val);
     s+='<line x1="'+mL+'" y1="'+y.toFixed(1)+'" x2="'+(w-mR)+'" y2="'+y.toFixed(1)+'" stroke="#2e2415"/>';
     s+='<text x="'+(mL-7)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#9c8f76">'+(ladderUnit==='usc'?nf(Math.round(val*100)):('$'+nf(val)))+'</text>';
   }
+  const nx=mobile?4:5;
+  for(let i=0;i<=nx;i++){
+    const dv=maxDay*i/nx, x=X(dv);
+    s+='<line x1="'+x.toFixed(1)+'" y1="'+mT+'" x2="'+x.toFixed(1)+'" y2="'+(mT+plotH)+'" stroke="#2e2415" stroke-dasharray="2 3"/>';
+    s+='<text x="'+x.toFixed(1)+'" y="'+(H-mB+14)+'" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#9c8f76">'+fmtEje(dv)+'</text>';
+  }
   let line=''; pts.forEach((p,i)=>{ line+=(i?' L ':'M ')+X(p.day).toFixed(1)+' '+Y(p.capital).toFixed(1); });
   s+='<path d="'+line+'" fill="none" stroke="var(--gold)" stroke-width="2.4"/>';
   pts.forEach(p=>{ s+='<circle cx="'+X(p.day).toFixed(1)+'" cy="'+Y(p.capital).toFixed(1)+'" r="3.5" fill="var(--ink)" stroke="var(--gold)" stroke-width="1.6"/>'; });
-  s+='<text x="'+(mL+plotW/2)+'" y="'+(H-2)+'" text-anchor="middle" font-family="IBM Plex Sans" font-size="10.5" fill="#cdbfa3">días transcurridos</text>';
-  el.innerHTML='<svg width="'+w+'" height="'+H+'" viewBox="0 0 '+w+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+s+'</svg>';
+  const etiquetaTiempo=unidadEje==='d'?'días transcurridos':(unidadEje==='m'?'meses transcurridos (aprox., 30 días/mes)':'años transcurridos');
+  s+='<text x="'+(mL+plotW/2)+'" y="'+(H-2)+'" text-anchor="middle" font-family="IBM Plex Sans" font-size="10.5" fill="#cdbfa3">'+etiquetaTiempo+'</text>';
+  // Capa interactiva: linea guia vertical + punto resaltado, ocultos hasta que se pase el cursor
+  s+='<g id="ladderHoverGuide" style="opacity:0;pointer-events:none">'
+    +'<line id="ladderHoverLine" x1="0" y1="'+mT+'" x2="0" y2="'+(mT+plotH)+'" stroke="var(--gold)" stroke-width="1" stroke-dasharray="3 3"/>'
+    +'<circle id="ladderHoverDot" r="5.5" fill="var(--gold)" stroke="var(--ink)" stroke-width="2"/>'
+    +'</g>';
+  s+='<rect id="ladderHoverCatcher" x="'+mL+'" y="'+mT+'" width="'+plotW+'" height="'+plotH+'" fill="transparent" style="cursor:crosshair"/>';
+  el.innerHTML='<div style="position:relative"><svg width="'+w+'" height="'+H+'" viewBox="0 0 '+w+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+s+'</svg>'
+    +'<div id="ladderTooltip" style="position:absolute;top:0;left:0;pointer-events:none;opacity:0;transition:opacity .1s;'
+    +'background:rgba(20,16,8,.95);border:1px solid var(--gold-dim);border-radius:8px;padding:6px 10px;'
+    +'font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--bone);white-space:nowrap;box-shadow:var(--lift-sm);z-index:5"></div></div>';
+
+  // Interactividad: mapear la posicion del cursor/dedo al punto mas cercano por dia transcurrido
+  const svgEl=el.querySelector('svg');
+  const catcher=el.querySelector('#ladderHoverCatcher');
+  const guide=el.querySelector('#ladderHoverGuide');
+  const hoverLine=el.querySelector('#ladderHoverLine');
+  const hoverDot=el.querySelector('#ladderHoverDot');
+  const tip=el.querySelector('#ladderTooltip');
+  const moverA=(clientX)=>{
+    const rect=svgEl.getBoundingClientRect();
+    const escala=w/rect.width;
+    const xLocal=(clientX-rect.left)*escala;
+    const dia=Math.min(maxDay,Math.max(0,(xLocal-mL)/plotW*maxDay));
+    // punto mas cercano en dias transcurridos
+    let cercano=pts[0];
+    for(const p of pts){ if(Math.abs(p.day-dia)<Math.abs(cercano.day-dia)) cercano=p; }
+    const cx=X(cercano.day), cy=Y(cercano.capital);
+    hoverLine.setAttribute('x1',cx.toFixed(1)); hoverLine.setAttribute('x2',cx.toFixed(1));
+    hoverDot.setAttribute('cx',cx.toFixed(1)); hoverDot.setAttribute('cy',cy.toFixed(1));
+    guide.style.opacity='1';
+    const fecha=new Date(today.getTime()+cercano.day*86400000);
+    tip.innerHTML='<b style="color:var(--gold)">'+fmtCapTip(cercano.capital)+'</b><br>'+fecha.toLocaleDateString('es-ES')+' · día '+Math.round(cercano.day);
+    tip.style.opacity='1';
+    // posicionar el tooltip cerca del punto, sin salirse del contenedor
+    const tipW=tip.offsetWidth||120;
+    let leftPx=(cx/w)*rect.width - tipW/2;
+    leftPx=Math.max(2,Math.min(rect.width-tipW-2,leftPx));
+    tip.style.left=leftPx.toFixed(0)+'px';
+    tip.style.top=Math.max(0,(cy/H)*rect.height-42).toFixed(0)+'px';
+  };
+  const ocultar=()=>{ guide.style.opacity='0'; tip.style.opacity='0'; };
+  catcher.addEventListener('mousemove',e=>moverA(e.clientX));
+  catcher.addEventListener('mouseleave',ocultar);
+  catcher.addEventListener('touchstart',e=>{ if(e.touches[0]) moverA(e.touches[0].clientX); },{passive:true});
+  catcher.addEventListener('touchmove',e=>{ if(e.touches[0]) moverA(e.touches[0].clientX); e.preventDefault(); },{passive:false});
+  catcher.addEventListener('touchend',ocultar);
 }
 
 function updateLadderResults(results){
@@ -1718,7 +1805,7 @@ function flashChangedValues(){
 
 function readInputs(){
   S.capital=Math.max(1,+$('capital').value||0); S.lote=+$('lote').value; S.mult=+$('mult').value;
-  S.gridPips=+$('grid').value; S.tpClasico=+$('tpClasico').value; S.price=+$('price').value; S.maxo=+$('maxo').value;
+  S.gridPips=+$('grid').value; S.tpClasico=+$('tpClasico').value; S.maxo=+$('maxo').value;
   S.commission=+$('commission').value;
   S.horaInicio=+$('horaInicio').value; S.horaFin=+$('horaFin').value;
 }
@@ -1738,7 +1825,7 @@ function syncLabels(){
   $('lGrid').textContent=S.gridPips+' pips';
   $('lTp').textContent=S.tpClasico+' pips';
   $('lPrice').textContent='$'+nf(S.price);
-  if(document.activeElement!==$('priceCustom')) $('priceCustom').value=S.price;
+  if(document.activeElement!==$('price')) $('price').value=S.price;
   $('lOz').textContent=S.oz%1===0?S.oz.toFixed(1):S.oz.toFixed(3);
   $('lMax').textContent=S.maxo;
   $('lSo').textContent=S.so+'%';
@@ -1936,7 +2023,7 @@ function render(){
     const hf24b = S.horaFin===24?'24:00':String(S.horaFin).padStart(2,'0')+':00';
     $('foot').innerHTML='El panel superior es el pronóstico probabilístico (asume oro sin tendencia direccional, movimiento tipo paseo aleatorio). '
       +'Este panel inferior muestra el escenario determinista extremo: recorrido adverso en línea recta, sin ningún retroceso. '
-      +'SL individual ($100 por orden) queda por detrás del umbral de stop-out en ambos modelos. Total de lotes en el escenario extremo: <b>'+r.totalLots+'</b>. '
+      +'Total de lotes en el escenario extremo: <b>'+r.totalLots+'</b>. '
       +'Nota: tu preset limita el EA a operar de '+String(S.horaInicio).padStart(2,'0')+':00 a '+hf24b+' y cierra posiciones fuera de ese horario; este modelo aún asume operación continua (24h) y no incorpora ese cierre forzado por horario.';
   }
 
@@ -2051,7 +2138,7 @@ function drawTable(r,f){
 }
 
 // ================= EVENTOS =================
-['lote','mult','grid','tpClasico','price','maxo','commission','horaInicio','horaFin'].forEach(id=>$(id).addEventListener('input',render));
+['lote','mult','grid','tpClasico','maxo','commission','horaInicio','horaFin'].forEach(id=>$(id).addEventListener('input',render));
 document.querySelectorAll('.stp').forEach(b=>b.addEventListener('click',()=>{
   const el=$(b.dataset.t), d=parseFloat(b.dataset.d);
   let v=Math.round((+el.value+d)*100)/100;
@@ -2070,10 +2157,12 @@ $('ozCustom').addEventListener('input',()=>{
   const v=+$('ozCustom').value;
   if(v>0){ S.oz=v; [...$('ozSegs').children].forEach(c=>c.classList.toggle('on', +c.dataset.oz===v)); setBroker('custom',false); render(); }
 });
-$('priceCustom').addEventListener('input',()=>{
-  const v=+$('priceCustom').value;
-  if(v>0){ $('price').value=Math.min(50000,Math.max(1500,v)); render(); }
-});
+$('price').addEventListener('input',()=>{ S.price=+$('price').value; render(); });
+document.querySelectorAll('.stp-price').forEach(b=>b.addEventListener('click',()=>{
+  const d=parseFloat(b.dataset.d);
+  S.price=Math.min(50000,Math.max(1500,S.price+d));
+  render();
+}));
 $('volSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
   [...$('volSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.volKey=t.dataset.vol;render();});
 $('ruinTargetSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
@@ -2131,7 +2220,9 @@ $('ladderTarget').addEventListener('input',()=>{
 });
 $('ladderAddRow').addEventListener('click',()=>{
   const last=ladderRows[ladderRows.length-1];
-  ladderRows.push({from:last?last.from*2:2000, lote:last?Math.round(last.lote*2*100)/100:0.02, mult:last?last.mult:S.mult});
+  const nuevoFrom=last?last.from+1000:2000;
+  const nuevoLote=last?Math.round(last.lote*(nuevoFrom/last.from)*100)/100:0.02;
+  ladderRows.push({from:nuevoFrom, lote:nuevoLote, mult:last?last.mult:S.mult});
   renderLadderRows();
 });
 $('ladderSimulate').addEventListener('click',()=>{
@@ -2155,7 +2246,7 @@ $('reset').addEventListener('click',()=>{
   try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
 
   $('capital').value=1000;$('lote').value=0.01;$('mult').value=1.20;$('grid').value=10;$('tpClasico').value=21;
-  $('price').value=4000;$('priceCustom').value=4000;$('maxo').value=50;$('so').value=20;$('margenFreno').value=20;$('commission').value=0.06;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=100;S.so=20;S.volKey='media';S.ruinTarget=1;S.margenFreno=20;
+  $('price').value=4000;$('maxo').value=50;$('so').value=20;$('margenFreno').value=20;$('commission').value=0.06;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=100;S.so=20;S.price=4000;S.volKey='media';S.ruinTarget=1;S.margenFreno=20;
   $('goalDaily').value=0;$('goalMonthly').value=0;$('goalDD').value=0;
   [...$('levSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.lev==='100'));
   [...$('ozSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.oz==='100'));
@@ -2182,12 +2273,12 @@ $('reset').addEventListener('click',()=>{
 
 // ================= MEMORIA (persiste tus ajustes entre recargas/pestañas) =================
 const STORAGE_KEY='goldenEngineState_v1';
-const INPUT_IDS=['capital','lote','mult','grid','tpClasico','price','maxo','commission',
-  'horaInicio','horaFin','goalDaily','goalMonthly','goalDD','ruinTargetCustom','ozCustom','priceCustom','margenFreno','broker'];
+const INPUT_IDS=['capital','lote','mult','grid','tpClasico','maxo','commission',
+  'horaInicio','horaFin','goalDaily','goalMonthly','goalDD','ruinTargetCustom','ozCustom','margenFreno','broker'];
 function saveState(){
   try{
     const vals={}; INPUT_IDS.forEach(id=>{const el=$(id); if(el) vals[id]=el.value;});
-    const extra={leverage:S.leverage,oz:S.oz,volKey:S.volKey,ruinTarget:S.ruinTarget,so:S.so,margenFreno:S.margenFreno};
+    const extra={leverage:S.leverage,oz:S.oz,volKey:S.volKey,ruinTarget:S.ruinTarget,so:S.so,margenFreno:S.margenFreno,price:S.price};
     localStorage.setItem(STORAGE_KEY, JSON.stringify({vals,extra}));
   }catch(e){/* almacenamiento no disponible: no pasa nada, sigue con los valores actuales */}
 }
@@ -2208,6 +2299,7 @@ function loadState(){
         [...$('ruinTargetSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.rt===extra.ruinTarget));}
       if(extra.so!==undefined){S.so=extra.so; $('so').value=extra.so;}
       if(extra.margenFreno!==undefined){S.margenFreno=extra.margenFreno; $('margenFreno').value=extra.margenFreno;}
+      if(extra.price!==undefined){S.price=extra.price;}
     }
     if(vals.broker && BROKERS[vals.broker]) setBroker(vals.broker,false);
     return true;
