@@ -69,6 +69,97 @@
     color:var(--faint);background:rgba(38,32,15,.82);border:1px solid var(--edge);
     border-radius:5px;padding:5px 10px;pointer-events:none;backdrop-filter:blur(2px)}
   .signature b{color:var(--gold-deep);font-weight:500}
+
+  /* ===================== PANTALLA DE INTRO ===================== */
+  #splashScreen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(120% 120% at 50% 38%, #241d0c 0%, #120d05 55%, #080603 100%);
+    transition:opacity .5s ease, visibility .5s ease}
+  #splashScreen.splash-hide{opacity:0;visibility:hidden;pointer-events:none}
+  .splash-inner{display:flex;flex-direction:column;align-items:center;gap:18px}
+
+  /* Caja del icono: entrada breve -- todo el intro esta comprimido a ~2.5s en total, tipo
+     trailer de pelicula: rapido y con ritmo, no una apertura larga */
+  .splash-icon-wrap{width:112px;height:112px;border-radius:26px;display:flex;align-items:center;justify-content:center;
+    position:relative;background:radial-gradient(120% 120% at 30% 25%, #2e2510 0%, #16110a 60%, #0b0804 100%);
+    box-shadow:0 0 55px -8px rgba(255,183,43,.42), inset 0 0 0 1px rgba(255,255,255,.06);
+    opacity:0;transform:scale(.8);animation:splashBoxIn .32s cubic-bezier(.22,.61,.2,1) .03s forwards}
+  .splash-icon-wrap.settled{opacity:1;transform:scale(1);animation:none}
+  @keyframes splashBoxIn{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:scale(1)}}
+
+  .splash-svg{width:66%;height:66%;position:relative;z-index:3}
+  .splash-path{stroke-dasharray:1;stroke-dashoffset:1;opacity:0}
+  /* El brillo se aplica DESPUES de que el trazo termina de dibujarse, no durante: un filtro
+     recalculandose en cada fotograma mientras la linea se mueve es caro para la GPU. drop-shadow
+     sobre el SVG ya quieto es mucho mas barato que un filtro SVG continuo. */
+  .splash-svg.done{filter:drop-shadow(0 0 7px rgba(255,193,90,.55))}
+
+  /* Resplandor de impacto: UNA sola pieza, centrada, mas grande que el propio icono (se
+     asoma por fuera de la caja a proposito). Nucleo brillante y opaco en el centro que se
+     desvanece de forma amplia y suave hacia el borde -- la ilusion de un punto de luz con
+     su destello difuminado alrededor, no un circulo con borde parejo. Por DETRAS del glyph
+     (z-index menor que el svg), para que nunca tape la M. */
+  .splash-glow{position:absolute;left:50%;top:50%;width:220px;height:220px;margin:-110px 0 0 -110px;
+    border-radius:50%;pointer-events:none;z-index:1;
+    background:radial-gradient(circle,
+      rgba(255,246,222,.95) 0%, rgba(255,238,200,.75) 8%, rgba(255,214,140,.42) 20%,
+      rgba(255,193,90,.18) 38%, rgba(255,183,43,.06) 55%, rgba(255,183,43,0) 72%);
+    transform:scale(.15);opacity:0}
+  .splash-glow.go{animation:glowPulse .6s cubic-bezier(0,.6,.4,1) forwards}
+  @keyframes glowPulse{
+    0%{opacity:0;transform:scale(.15)}
+    30%{opacity:1;transform:scale(.55)}
+    100%{opacity:0;transform:scale(1)}
+  }
+
+  /* GOLDEN ENGINE: entrada "en suspenso", comprimida */
+  .splash-word{font-family:"Saira",sans-serif;font-weight:700;font-size:22px;letter-spacing:.42em;color:var(--bone);
+    text-shadow:0 0 22px var(--glow-white);opacity:0;filter:blur(9px)}
+  .splash-word em{font-style:normal;font-weight:400;color:var(--gold)}
+  .splash-word.reveal{animation:splashSuspense .55s cubic-bezier(.16,.84,.44,1) both}
+  @keyframes splashSuspense{
+    0%{opacity:0;filter:blur(9px);letter-spacing:.42em}
+    45%{opacity:.35;filter:blur(6px);letter-spacing:.3em}
+    100%{opacity:1;filter:blur(0);letter-spacing:.05em}
+  }
+
+  /* designed by Mr. Melo: revelado tipo "cortina" de izquierda a derecha, comprimido */
+  .splash-by{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);letter-spacing:.06em;
+    opacity:0;clip-path:inset(0 100% 0 0)}
+  .splash-by b{color:var(--gold-deep);font-weight:500}
+  .splash-by.reveal{animation:splashWipe .4s cubic-bezier(.65,0,.35,1) both}
+  @keyframes splashWipe{
+    0%{opacity:1;clip-path:inset(0 100% 0 0)}
+    100%{opacity:1;clip-path:inset(0 0 0 0)}
+  }
+
+  /* Destello final sobre "Mr. Melo": DOS CAPAS superpuestas -- la base dorada normal (el
+     texto real, siempre presente) y una copia identica encima, en tono mas brillante/blanco,
+     inicialmente oculta con clip-path. Al dispararse, esa capa brillante se revela con un
+     deslizamiento de izquierda a derecha (la misma tecnica de "cortina" que ya usa el
+     "designed by", probada y sin bugs) y se QUEDA revelada al final -- como si la luz hiciera
+     que las letras, hechas de oro puro, resplandecieran y se quedaran asi, resaltando, en vez
+     de un brillo que pasa y se apaga. Esto evita del todo el problema anterior (un rectangulo
+     visible superpuesto): no hay filter ni background-position combinados con
+     background-clip:text, que es una combinacion con bugs conocidos de repintado en Safari.
+     Aqui solo hay clip-path sobre texto solido, la misma tecnica ya validada. */
+  .splash-melo-wrap{position:relative;display:inline-block;color:var(--gold-deep);font-weight:500}
+  .splash-melo-bright{position:absolute;left:0;top:0;white-space:nowrap;color:#fff6da;
+    clip-path:inset(0 100% 0 0);pointer-events:none}
+  .splash-melo-bright.shine{animation:splashMeloShine .5s cubic-bezier(.45,0,.2,1) forwards}
+  @keyframes splashMeloShine{
+    0%{clip-path:inset(0 100% 0 0)}
+    100%{clip-path:inset(0 0 0 0)}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    .splash-icon-wrap,.splash-word,.splash-by{animation:none !important;opacity:1 !important;
+      transform:none !important;filter:none !important;letter-spacing:.05em !important;clip-path:none !important}
+    .splash-path{stroke-dasharray:none !important;stroke-dashoffset:0 !important;opacity:1 !important}
+    .splash-glow{display:none !important}
+    .splash-melo-bright{animation:none !important;clip-path:inset(0 0 0 0) !important}
+
+  }
+  @media print{#splashScreen{display:none !important}}
   @media(max-width:480px){
     .signature{font-size:7.5px;padding:3px 6px;right:8px;letter-spacing:.04em;max-width:118px;
       line-height:1.3;text-align:right}
@@ -413,6 +504,26 @@
 </style>
 
 <body>
+<div id="splashScreen" aria-hidden="true">
+  <div class="splash-inner">
+    <div class="splash-icon-wrap" id="splashBox">
+      <svg class="splash-svg" viewBox="0 0 400 400">
+        <defs>
+          <linearGradient id="splashGold" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse" gradientTransform="scale(1,400)">
+            <stop offset="0" stop-color="#fff0c9"/>
+            <stop offset="0.55" stop-color="#ffcf6b"/>
+            <stop offset="1" stop-color="#ffa71f"/>
+          </linearGradient>
+        </defs>
+        <path class="splash-path" d="M144 270 V140 L200 195 L256 122 V270" fill="none" stroke="url(#splashGold)"
+          stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="splash-glow"></div>
+    </div>
+    <div class="splash-word">GOLDEN <em>ENGINE</em></div>
+    <div class="splash-by">designed by <b class="splash-melo-wrap">Mr. Melo<span class="splash-melo-bright" aria-hidden="true">Mr. Melo</span></b></div>
+  </div>
+</div>
 <div class="signature">designed by <b>Mr. Melo</b></div>
 <div class="wrap">
   <header>
@@ -834,6 +945,137 @@
 </div>
 
 <script>
+// ===================== PANTALLA DE INTRO =====================
+(function(){
+  const splash=document.getElementById('splashScreen');
+  if(!splash) return;
+  const reducida=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const caja=document.getElementById('splashBox');
+  const svg=splash.querySelector('.splash-svg');
+  if(caja) caja.addEventListener('animationend', function fijar(e){
+    if(e.animationName==='splashBoxIn') caja.classList.add('settled');
+  }, {once:true});
+  const palabra=splash.querySelector('.splash-word'), porQuien=splash.querySelector('.splash-by');
+  const brillo=splash.querySelector('.splash-melo-bright');
+  const glow=splash.querySelector('.splash-glow');
+  const trazo=splash.querySelector('.splash-path');
+
+  function once(fn){
+    let hecho=false;
+    return function(...args){
+      if(hecho) return;
+      hecho=true;
+      fn.apply(this,args);
+    };
+  }
+
+  // ---- Sonido opcional, sintetizado en el momento (sin archivos externos) para acentuar
+  // el impacto y el destello. Intenta reproducirse solo; Safari/iOS bloquea el audio
+  // automatico en paginas sin interaccion previa del usuario, asi que puede que no se
+  // escuche nada al abrir el archivo directo -- eso es una politica de Apple, no un fallo
+  // de este codigo. Si el usuario toca la pantalla en los primeros instantes, sonaria. ----
+  let audioCtx=null;
+  try{ const AC=window.AudioContext||window.webkitAudioContext; if(AC) audioCtx=new AC(); }catch(e){}
+  function tono(freq,inicio,duracion,tipo,volMax,freqFin){
+    if(!audioCtx) return;
+    try{
+      const t0=audioCtx.currentTime+inicio;
+      const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+      osc.type=tipo||'sine';
+      osc.frequency.setValueAtTime(freq,t0);
+      if(freqFin) osc.frequency.exponentialRampToValueAtTime(freqFin,t0+duracion);
+      gain.gain.setValueAtTime(0.0001,t0);
+      gain.gain.exponentialRampToValueAtTime(volMax,t0+Math.min(.05,duracion*.25));
+      gain.gain.exponentialRampToValueAtTime(0.0001,t0+duracion);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(t0); osc.stop(t0+duracion+.05);
+    }catch(e){}
+  }
+  function sonidoTrazo(){ tono(180,0,.55,'sine',.05,420); } // barrido suave ascendente
+  function sonidoImpacto(){ tono(90,0,.16,'triangle',.16); tono(55,.02,.14,'sine',.12); }
+  function sonidoDestello(){ tono(1046,0,.09,'sine',.05); tono(1568,.07,.11,'sine',.05); tono(2093,.15,.14,'sine',.045); }
+
+  // Todo el intro esta pensado para un recorrido continuo de principio a fin: cada fase
+  // arranca un poco ANTES de que la anterior termine del todo (solape intencional), en vez
+  // de esperar a que se detenga por completo -- eso es lo que da la sensacion de "escalones"
+  // en vez de un solo movimiento fluido. Duracion total ampliada ~0.5s sobre la version previa.
+  const reposo=170, tope=4800;
+  const programarSalida=once(function(){
+    setTimeout(()=>{
+      splash.classList.add('splash-hide');
+      setTimeout(()=>{ if(splash.parentNode) splash.parentNode.removeChild(splash); }, 420);
+    }, reposo);
+  });
+
+  // Fase 6: destello final -- estrella fugaz, rapida y brillante, sobre "Mr. Melo"
+  const dispararDestello=once(function(){
+    sonidoDestello();
+    if(brillo) brillo.classList.add('shine');
+    setTimeout(programarSalida, 470); // duracion .5s del destello, con leve margen
+  });
+
+  // Fase 5: "designed by Mr. Melo" con cortina de izquierda a derecha
+  const revelarPorQuien=once(function(){
+    if(!porQuien){ dispararDestello(); return; }
+    porQuien.classList.add('reveal');
+    setTimeout(dispararDestello, 330); // ~85% de los .4s del wipe: arranca el destello
+                                        // un poco antes de que la cortina termine del todo
+  });
+
+  // Fase 4: "GOLDEN ENGINE" entrando en foco, en suspenso
+  const revelarPalabra=once(function(){
+    if(!palabra){ revelarPorQuien(); return; }
+    palabra.classList.add('reveal');
+    setTimeout(revelarPorQuien, 470); // ~85% de los .55s del suspenso
+  });
+
+  if(reducida){
+    if(palabra) palabra.classList.add('reveal');
+    if(porQuien) porQuien.classList.add('reveal');
+    setTimeout(programarSalida, 150);
+  } else if(!trazo){
+    revelarPalabra();
+  } else {
+    const len=trazo.getTotalLength();
+    const quiebre=len*0.44;
+    trazo.style.strokeDasharray=len+' '+len;
+    trazo.style.strokeDashoffset=len;
+    void trazo.getBoundingClientRect();
+
+    const dispararImpacto=once(function(){
+      sonidoImpacto();
+      if(svg) svg.classList.add('done');
+      if(caja){
+        caja.style.transition='transform .09s cubic-bezier(.36,.07,.19,.97)';
+        caja.style.transform='scale(0.94,1.05)';
+        setTimeout(()=>{
+          caja.style.transform='scale(1.03,.97)';
+          setTimeout(()=>{ caja.style.transform='scale(1,1)'; },90);
+        },90);
+      }
+      if(glow) glow.classList.add('go');
+    });
+
+    // Fase 2: tramo rapido y progresivo, del 56% al 100% -- la siguiente fase (el texto) ya
+    // arranca antes de que este tramo termine de asentarse, para que se sienta conectado
+    const faseDos=once(function(){
+      dispararImpacto();
+      trazo.style.transition='stroke-dashoffset .21s cubic-bezier(.55,.06,.68,.19)';
+      requestAnimationFrame(()=>{ trazo.style.strokeDashoffset='0'; });
+      setTimeout(revelarPalabra, 170); // ~80% de los .21s
+    });
+
+    // Fase 1: tramo lento, del 0% al 56% dibujado
+    trazo.style.transition='stroke-dashoffset .6s ease-in-out .2s, opacity .1s linear .2s';
+    trazo.addEventListener('transitionend', faseDos, {once:true});
+    sonidoTrazo();
+    requestAnimationFrame(()=>{ trazo.style.strokeDashoffset=String(quiebre); trazo.style.opacity='1'; });
+    setTimeout(faseDos, 950); // red de seguridad
+  }
+  setTimeout(programarSalida, tope);
+})();
+
+
 // ================= MOTOR DETERMINISTA (peor caso, validado) =================
 function lotAtLevel(n,lots,mult){return Math.round(lots*Math.pow(mult,n)*100)/100;}
 function stopoutX(A,B,C,price,lev,so){const d=A*(1-so/lev);if(d<=0)return Infinity;return (C+B-so*A*price/lev)/d;}
@@ -2316,6 +2558,7 @@ updateHistorySummary();
 if(!loadState()) setBroker('vt_std_stp',false);
 renderLadderRows();
 render();
+
 </script>
 </body>
 </html>
