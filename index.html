@@ -1239,7 +1239,7 @@ const EMP_DEFAULT = {
   tpClassicPipsRef: 21,
   sources: 1,                 // cuantos historiales distintos se han combinado
   ranges: [{start: Date.parse('2026-07-02T07:46:27'), end: Date.parse('2026-07-16T19:39:01'),
-            label: 'Historial de fábrica'}],
+            label: 'Historial de fábrica', account:'32240565'}],
   sumProfitUSD: 145.9952,
   sumProfitSqUSD: 4456.6802,
   maxLosingStreak: 2,
@@ -1271,23 +1271,17 @@ function selectActiveDistribution(lote){
   // etiqueta general (para el texto explicativo): cuanto se confia en el regimen en su conjunto
   const overallWeight = (regimeCycles>0 && generalTotal>0) ? regimeCycles/(regimeCycles+REGIME_HALF_WEIGHT) : 0;
   ACTIVE_REGIME_INFO={matched:overallWeight>=0.5, key, cycles:regimeCycles, weight:overallWeight};
-  if(regimeCycles<=0 || generalTotal<=0){ ACTIVE_BLEND=null; return ACTIVE_REGIME_INFO; }
-  // mezcla NIVEL POR NIVEL: un lote puede tener bastantes ciclos en total pero muy pocos
-  // en un nivel (numero de ordenes) especifico, sobre todo en los niveles profundos/raros —
-  // esos niveles profundos tambien son los de mayor valor en dolares, asi que un puñado de
-  // muestras ahi puede sacudir el promedio entero si se les da el mismo peso que al resto.
-  // por eso el peso se calcula POR NIVEL, segun cuantas muestras reales hay en ESE nivel exacto,
-  // no segun el total de ciclos del regimen.
-  const ns=new Set([...Object.keys(EMP.nDist||{}), ...Object.keys(r.nDist||{})].map(Number));
-  const blend={};
-  for(const n of ns){
-    const pGeneral=(EMP.nDist[n]||0)/generalTotal;
-    const countAtN=r.nDist[n]||0;
-    const wN=countAtN/(countAtN+PER_LEVEL_HALF_WEIGHT);
-    const pRegime=countAtN/regimeCycles;
-    blend[n]=wN*pRegime + (1-wN)*pGeneral;
-  }
-  ACTIVE_BLEND=blend;
+  // La profundidad de un ciclo (cuantas ordenes abre antes de volver al TP) es una propiedad del
+  // MERCADO, no del tamaño del lote inicial: subir el lote no hace que el oro retroceda distinto.
+  // Los datos reales lo confirman — entre lotes con muestra suficiente la profundidad media apenas
+  // cambia (p.ej. 3.5 / 4.1 / 4.3), mientras que un lote con 1 solo ciclo daba una "profundidad"
+  // absurda (13) que envenenaba el pronostico y rompia la monotonia profit-vs-lote (lotes vecinos
+  // saltando arriba/abajo segun que muestra minuscula les tocara). Por eso el pronostico usa SIEMPRE
+  // la distribucion de profundidad AGRUPADA (todos los lotes juntos, muchos mas datos, sin ruido de
+  // muestreo por lote). El regimen por lote se conserva solo como dato informativo (cuantos ciclos
+  // propios hay), pero NO mueve el numero. Resultado: la curva es monotona donde debe serlo y solo
+  // gira hacia abajo por causas reales (capacidad de margen), no por ruido de calibracion.
+  ACTIVE_BLEND=null;
   return ACTIVE_REGIME_INFO;
 }
 function empiricalP(n){
@@ -1338,6 +1332,11 @@ function parseDateMT5(s){
 }
 
 function parseMT5Report(text){
+  // numero de cuenta: aparece al inicio del <title> del reporte ("32240565: GLDNBYZ - ...").
+  // sirve para distinguir el MISMO bot corriendo en cuentas distintas: mismas fechas pero otra
+  // cuenta = datos legitimos de otra cuenta, NO un duplicado (ver findOverlap).
+  const acctM = text.match(/<title>\s*([0-9]{3,})/);
+  const account = acctM ? acctM[1] : null;
   const iStart=text.indexOf('Posiciones</b>');
   if(iStart===-1) return {error:'No se encontró la sección "Posiciones" — ¿es un ReportHistory de MT5 exportado a HTML?'};
   const iEnd=text.indexOf('Órdenes</b>', iStart);
@@ -1438,7 +1437,7 @@ function parseMT5Report(text){
   return {nCounts, hourCounts, hourProfitSum, totalCycles:validCycles, totalDays:days, totalVolume,
           totalCommission:totalCommission/100, rangeStart:minTime, rangeEnd:maxTime,
           sumProfitUSD, sumProfitSqUSD, maxStreak, maxStreakLoss, regimeCounts, dominantLote,
-          avgProfitUSD: sumProfitUSD/validCycles, avgDepth};
+          account, avgProfitUSD: sumProfitUSD/validCycles, avgDepth};
 }
 
 const CALIB_KEY='goldenEngineCalibration_v1';
@@ -1466,10 +1465,17 @@ function loadCalibration(){
   return false;
 }
 
-function findOverlap(newStart, newEnd){
+function findOverlap(newStart, newEnd, account){
   if(!EMP.ranges) EMP.ranges=[];
   for(const r of EMP.ranges){
-    if(newStart<=r.end && newEnd>=r.start) return r;   // se solapan
+    const overlaps = newStart<=r.end && newEnd>=r.start;
+    if(!overlaps) continue;
+    // MISMO bot en cuentas distintas: mismas fechas pero distinto numero de cuenta = datos reales de
+    // otra cuenta, NO un duplicado → se permite combinar. Solo se bloquea cuando la cuenta coincide
+    // (o cuando no se pudo leer el numero de cuenta en alguno de los dos: ahi se conserva el criterio
+    // conservador por fechas, para no arriesgar un doble conteo del mismo archivo).
+    if(account && r.account && r.account!==account) continue;
+    return r;   // misma cuenta (o cuenta desconocida) + fechas solapadas = duplicado real
   }
   return null;
 }
@@ -1496,7 +1502,10 @@ function mergeCalibration(stats){
   EMP.sources = (EMP.sources||1)+1;
   if(!EMP.ranges) EMP.ranges=[];
   EMP.ranges.push({start:stats.rangeStart.getTime(), end:stats.rangeEnd.getTime(),
-                    label:stats.rangeStart.toLocaleDateString('es-ES')+' – '+stats.rangeEnd.toLocaleDateString('es-ES'),
+                    label:stats.rangeStart.toLocaleDateString('es-ES')+' – '+stats.rangeEnd.toLocaleDateString('es-ES')
+                          +(stats.account?(' · cuenta '+stats.account):'')
+                          +(stats.dominantLote?(' · lote '+stats.dominantLote):''),
+                    account: stats.account||null, dominantLote: stats.dominantLote||null,
                     avgDepth: stats.avgDepth, cycles: stats.totalCycles});
 
   // profit real acumulado (para intervalo de confianza)
@@ -1582,13 +1591,16 @@ function handleHistoryUpload(){
     }
     const res=parseMT5Report(text);
     if(res.error){ $('historyStatus').textContent='⚠ '+res.error; return; }
-    const overlap = findOverlap(res.rangeStart.getTime(), res.rangeEnd.getTime());
+    const overlap = findOverlap(res.rangeStart.getTime(), res.rangeEnd.getTime(), res.account);
     if(overlap){
+      const sameAcctTxt = (res.account && overlap.account && res.account===overlap.account)
+        ? ' de la <b>misma cuenta ('+res.account+')</b>' : '';
       $('historyStatus').innerHTML = '⚠ <b>No se combinó.</b> Este archivo cubre '
         +res.rangeStart.toLocaleDateString('es-ES')+' – '+res.rangeEnd.toLocaleDateString('es-ES')
-        +', que se solapa con un período ya calibrado ('+overlap.label+'). '
-        +'Subir el mismo período dos veces duplicaría los datos y falsearía la calibración. '
-        +'Sube un historial de fechas distintas, o si estás seguro de que quieres forzarlo, usa "Reiniciar calibración" primero.';
+        +sameAcctTxt+', que se solapa con un período ya calibrado ('+overlap.label+'). '
+        +'Subir el mismo período de la misma cuenta dos veces duplicaría los datos y falsearía la calibración. '
+        +'Si este historial es de <b>otra cuenta</b>, asegúrate de exportarlo desde esa cuenta (el número de cuenta va en el reporte y es lo que los distingue). '
+        +'Si aun así quieres forzarlo, usa "Reiniciar calibración" primero.';
       $('historyFile').value='';
       return;
     }
@@ -1607,25 +1619,27 @@ function handleHistoryUpload(){
 function AN_hybridEvCycle(levels, commissionPerLot, hourlyAdjustment){
   const N=levels.length;
   const r=AN_forecast(levels, commissionPerLot);
-  let pMassWithin=0; for(let n=1;n<N;n++) pMassWithin+=empiricalP(n);
-  // sin NINGUN dato empirico (calibracion en cero): la aproximacion de "cola" de abajo asume que
-  // casi toda la masa es empirica y solo el nivel final es teorico — con 0% empirico esa aproximacion
-  // colapsa todo en el ultimo nivel del ladder, dando un valor irreal. En ese caso, usar directamente
-  // el valor esperado teorico COMPLETO (ya correcto en si mismo, cubre todos los niveles) sin recortar.
-  if(pMassWithin<=1e-9) return r.EProfitCycle;
+  // sin NINGUN dato empirico (calibracion en cero): usar el valor esperado teorico COMPLETO
+  // (ya correcto, cubre todos los niveles). Ojo: NO se puede usar pMassWithin<=0 como proxy de
+  // "sin datos", porque tambien vale 0 cuando SI hay historial pero el capital solo sostiene 1
+  // nivel (Nreal=1) — ese caso ahora se maneja abajo con la cola honesta, no aqui.
+  const hasEmp = (EMP.totalCycles>0) && Object.keys(EMP.nDist||{}).length>0;
+  if(!hasEmp) return r.EProfitCycle;
 
+  let pMassWithin=0; for(let n=1;n<N;n++) pMassWithin+=empiricalP(n);
   const pTail=1-pMassWithin;
   const profitAt=levels.map(lv=>lv.A*lv.b-lv.floatingLoss-commissionPerLot*lv.totalLots);
   let ev=0; for(let n=1;n<N;n++) ev+=empiricalP(n)*profitAt[n-1];
   if(pTail>1e-12){
-    // el ultimo nivel del ladder es un limite ARTIFICIAL por margen disponible, no un limite
-    // natural de la teoria — cualquier formula que intente "valorar" la cola apoyandose en la
-    // probabilidad teorica de ese nivel puede dispararse (la teoria le asigna ahi una masa de
-    // probabilidad inflada, por ser un punto de absorcion forzado). Sea cual sea el tamaño de
-    // la cola, lo mas robusto es normalizar el promedio ya calculado sobre el 100% de la masa
-    // de probabilidad cubierta — asume que lo no observado se comporta como lo observado, en
-    // vez de extrapolar con una formula que ya demostro fallar en varios casos reales.
-    ev /= pMassWithin;
+    // COLA: los ciclos que en tu historial cerraron MAS profundos que el ultimo nivel que tu capital
+    // sostiene no capturan la ventaja empirica a este lote — chocan contra el muro de margen. Antes se
+    // renormalizaba (ev/=pMassWithin), asumiendo que la cola se portaba como lo poco alcanzado: demasiado
+    // optimista y causa de que subir el lote diera a veces MENOS profit. Ahora la cola se valora con el
+    // motor TEORICO conservador (r.EProfitCycle ≈ break-even, sin regalarle ventaja de mercado): los
+    // ciclos fuera de tu capacidad dejan de sumar edge, pero no se les carga una perdida catastrofica
+    // (eso duplicaria el riesgo que el panel de supervivencia/ruina ya reporta aparte). Es suave en el
+    // lote (no genera precipicios), asi que la curva sube donde debe y decae hacia ~0 al sobre-apalancar.
+    ev += pTail*r.EProfitCycle;
   }
   if(hourlyAdjustment) ev += hourlyAdjustment;
   return ev;
@@ -1982,16 +1996,17 @@ function AN_hybridForecast(p, cyclesPerDayOverride, hourlyAdjustment){
 
   let pMassWithin=0; for(let n=1;n<Nreal;n++) pMassWithin+=empiricalP(n);
   const pTailBeyond=1-pMassWithin;
+  const hasEmp = (EMP.totalCycles>0) && Object.keys(EMP.nDist||{}).length>0;
 
   const profitAt=levels.map(lv=>lv.A*lv.b-lv.floatingLoss-p.commissionPerLot*lv.totalLots);
-  const lossAtNreal_arr=levels.map(lv=>lv.A*lv.xSo-lv.B+p.commissionPerLot*lv.totalLots);
   const lastIdx=Nreal-1;
   const lossAtNreal=levels[lastIdx].A*levels[lastIdx].xSo-levels[lastIdx].B+p.commissionPerLot*levels[lastIdx].totalLots;
 
   let EProfit, EOrders, mayorBasket;
-  if(pMassWithin<=1e-9){
-    // sin NINGUN dato empirico: usar el modelo teorico completo y correcto en todos los campos,
-    // no la aproximacion "cola=ultimo nivel" (que colapsaria todo al peor caso posible)
+  if(!hasEmp){
+    // sin NINGUN dato empirico (calibracion en cero): usar el modelo teorico completo y correcto
+    // en todos los campos. (Se comprueba hasEmp, no pMassWithin<=0: este ultimo tambien es 0 cuando
+    // SI hay historial pero el capital solo sostiene 1 nivel — ese caso va por la rama empirica.)
     EProfit=rTheo.EProfitCycle;
     EOrders=rTheo.EOrders;
     mayorBasket=AN_percentile(rTheo.V, 0.95);
@@ -1999,12 +2014,16 @@ function AN_hybridForecast(p, cyclesPerDayOverride, hourlyAdjustment){
     EProfit=0; for(let n=1;n<Nreal;n++) EProfit+=empiricalP(n)*profitAt[n-1];
     EOrders=0; for(let n=1;n<Nreal;n++) EOrders+=empiricalP(n)*n;
     if(pTailBeyond>1e-12){
-      // el nivel Nreal es un limite ARTIFICIAL impuesto por el margen disponible, no un
-      // limite natural de la teoria — cualquier formula que valore la cola apoyandose en la
-      // probabilidad teorica de ese nivel puede dispararse (ya demostrado con casos reales).
-      // sea cual sea el tamaño de la cola, normalizar sobre la masa de probabilidad cubierta
-      // es lo mas robusto: asume que lo no observado se comporta como lo observado.
-      EProfit /= pMassWithin; EOrders /= pMassWithin;
+      // COLA (mismo criterio que AN_hybridEvCycle): los ciclos que en tu historial cerraron mas
+      // profundos que el ultimo nivel que tu capital sostiene (nivel Nreal, el "muro" de margen) no
+      // capturan la ventaja empirica a este lote — chocan contra el muro. Antes se renormalizaba
+      // (EProfit/=pMass), asumiendo que la cola se portaba como lo poco alcanzado: demasiado optimista
+      // y causa raiz de que subir el lote diera a veces MENOS profit. Ahora la cola se valora con el
+      // motor TEORICO conservador (rTheo.EProfitCycle ≈ break-even, sin ventaja de mercado): esos ciclos
+      // dejan de sumar edge, sin cargarles una perdida catastrofica (el riesgo real de ruina/drawdown ya
+      // lo reporta el panel teorico y el aviso de sobre-apalancamiento). Suave en el lote: sin precipicios.
+      EProfit += pTailBeyond*rTheo.EProfitCycle;
+      EOrders += pTailBeyond*Nreal;
     }
 
     let cum=0; mayorBasket=Nreal;
@@ -2020,8 +2039,12 @@ function AN_hybridForecast(p, cyclesPerDayOverride, hourlyAdjustment){
   const EProfitDay=EProfit*cpd, EProfitMonth=EProfitDay*21;
   const calibracionValida = (p.gridPips===EMP.gridPipsRef && p.tpClassicPips===EMP.tpClassicPipsRef);
 
+  // señal de sobre-apalancamiento, derivada de datos reales: pTailBeyond es la fraccion de ciclos
+  // que tu historial vivio MAS profundos de lo que este capital+lote puede sostener. Si supera 0.5,
+  // la MAYORIA de los ciclos reales chocarian contra el muro de margen a este lote → sobre-apalancado.
+  const overLeveraged = hasEmp && pTailBeyond>0.5;
   return {Nreal, EProfitCycle:EProfit, EOrders, mayorBasket, cyclesPerDay:cpd,
-          EProfitDay, EProfitMonth, calibracionValida, pTailBeyond};
+          EProfitDay, EProfitMonth, calibracionValida, pTailBeyond, overLeveraged, reachableLevels:Nreal};
 }
 
 // ================= ESTADO =================
@@ -2143,9 +2166,16 @@ function render(){
   $('hProfitSign').textContent=h.EProfitCycle>=0?'$':'−$';
   $('hProfit').textContent=Math.abs(h.EProfitCycle).toFixed(2);
   const vEl=$('verdict');
-  if(h.EProfitCycle>=0){vEl.textContent='Valor esperado positivo';}
-  else{vEl.textContent='Valor esperado negativo';}
-  vEl.style.color='var(--gold)';
+  if(h.overLeveraged){
+    // el numero refleja la ventaja empirica de los ciclos DENTRO de tu capacidad; pero si la mayoria
+    // de los ciclos historicos exceden lo que tu capital sostiene, ese profit no es fiable: el riesgo
+    // de ruina (panel de supervivencia) manda. El veredicto lo dice en vez de un "positivo" enganoso.
+    vEl.textContent='Sobre-apalancado — riesgo de ruina elevado';
+    vEl.style.color='#e6b800';
+  } else {
+    vEl.textContent = h.EProfitCycle>=0 ? 'Valor esperado positivo' : 'Valor esperado negativo';
+    vEl.style.color='var(--gold)';
+  }
 
   // ---- panel de pronostico ----
   $('fDD').textContent='$'+nf(f.EDd);
@@ -2176,8 +2206,8 @@ function render(){
     +'Con el lote, multiplicador y comisión actuales, el modelo indica un profit esperado de '+(h.EProfitCycle>=0?'+':'−')+'$'+Math.abs(h.EProfitCycle).toFixed(2)+' por ciclo ('+(h.EProfitDay>=0?'+':'−')+'$'+Math.abs(h.EProfitDay).toFixed(2)+'/día). '
     +'El riesgo de ruina por ciclo sigue siendo bajo y teórico ('+(f.PRuin*100).toFixed(4)+'%), y al repetirse ≈'+nf(cyclesPerMonth)+' veces al mes se traduce en '+(survMonth*100).toFixed(1)+'% de probabilidad de supervivencia a 1 mes — esa parte del cálculo no asume ninguna ventaja a favor del sistema, precisamente para no subestimar el riesgo de cola.'
     +(regimeInfo.cycles>0
-      ? ('<br><br><b>Régimen por lote:</b> tu lote inicial actual ('+S.lote.toFixed(2)+') tiene '+nf(regimeInfo.cycles)+' ciclos reales calibrados específicamente con ese mismo lote — el pronóstico combina esos datos con el promedio general, dando un '+(regimeInfo.weight*100).toFixed(0)+'% de peso a lo específico de tu lote y '+((1-regimeInfo.weight)*100).toFixed(0)+'% al histórico combinado (más ciclos propios de ese lote = más peso, de forma gradual, sin saltos bruscos entre lotes vecinos).')
-      : ('<br><br><b>Régimen por lote:</b> tu lote inicial actual ('+S.lote.toFixed(2)+') no tiene historial propio todavía — el pronóstico usa la distribución general combinada de todos los lotes históricos como aproximación.'))
+      ? ('<br><br><b>Régimen por lote (informativo):</b> tu lote inicial actual ('+S.lote.toFixed(2)+') aparece con '+nf(regimeInfo.cycles)+' ciclo(s) propios en tu historial. El pronóstico <b>no</b> usa esa muestra por separado: la profundidad de un ciclo la marca el mercado, no el tamaño del lote, y las muestras por lote suelen ser demasiado pequeñas para ser fiables (un solo ciclo raro basta para distorsionar un lote entero). Por eso se usa la <b>distribución de profundidad agrupada de todo tu historial</b>, mucho más estable — el número por lote se muestra solo como referencia.')
+      : ('<br><br><b>Régimen por lote (informativo):</b> tu lote inicial actual ('+S.lote.toFixed(2)+') no tiene ciclos propios en tu historial. No importa para la exactitud: el pronóstico usa la distribución de profundidad agrupada de todo el historial, que es la medida correcta (la profundidad depende del mercado, no del lote).'))
     +('<br><br><b>Confianza de esta proyección: '+confInfo.nivel.toUpperCase()+'.</b> '
       +(confInfo.nivel==='alta'
         ? 'Está bien respaldada por historial real propio de este lote y estas condiciones, y por varios periodos distintos de mercado.'
@@ -2196,6 +2226,12 @@ function render(){
           ? 'Para subir la confianza real —no solo acumular ciclos del mismo tramo— conviene subir historiales de épocas distintas del oro (meses o trimestres diferentes) que ademas hayan tenido un movimiento de mercado realmente distinto, no solo fechas distintas.'
           : 'Ya cubres varias épocas con condiciones de mercado realmente distintas, lo cual hace la proyección más robusta ante cambios de carácter del oro.')
       );
+  // ---- aviso de capacidad de margen (sobre-apalancamiento), derivado de datos reales ----
+  if(h.overLeveraged){
+    insight += '<br><br><b style="color:#e6b800">⚠ Sobre-apalancamiento:</b> con tu capital ($'+nf(S.capital)+') y este lote inicial ('+S.lote.toFixed(2)+'), el canasto solo sostiene <b>~'+h.reachableLevels+' nivel'+(h.reachableLevels===1?'':'es')+'</b> de grid antes del stop-out. El <b>'+(h.pTailBeyond*100).toFixed(0)+'%</b> de los ciclos que tu historial real vivió fueron más profundos que eso: a este lote, esos ciclos no cerrarían en ganancia — chocarían contra el muro de margen y se irían a pérdida. Por eso el profit esperado deja de crecer (y acaba girando a negativo) al pasar de cierto lote: no es un fallo del pronóstico, es el coste real de operar demasiado grande para tu capital. <b>Baja el lote o sube el capital</b> para recuperar margen de maniobra.';
+  } else if(h.reachableLevels<=3 && (EMP.totalCycles>0)){
+    insight += '<br><br><b style="color:#c9a94a">Nota de capacidad:</b> a este lote tu capital sostiene ~'+h.reachableLevels+' niveles de grid antes del stop-out. Aún es viable, pero vas con poco margen para ciclos profundos; súbelo con cuidado.';
+  }
   $('insight').innerHTML=insight;
 
   // ---- objetivo financiero ----
