@@ -606,6 +606,29 @@
       </div>
     </div>
 
+    <div class="keep-block" id="mcBlock" style="display:none">
+      <div class="subhead">Distribución mensual — Monte-Carlo sobre tus ciclos reales</div>
+      <div class="fgrid">
+        <div class="fcell"><div class="k">Mes típico (mediana)</div><div class="v accent" id="mcP50">$0</div><div class="sub">P50 de los meses simulados</div></div>
+        <div class="fcell"><div class="k">Peor mes (P5)</div><div class="v" id="mcP5">$0</div><div class="sub">1 de cada 20 meses es peor que esto</div></div>
+        <div class="fcell"><div class="k">Mejor mes (P95)</div><div class="v" id="mcP95">$0</div><div class="sub">1 de cada 20 meses es mejor</div></div>
+        <div class="fcell"><div class="k">Meses perdedores</div><div class="v" id="mcLose">0%</div><div class="sub">probabilidad de cerrar el mes en rojo</div></div>
+        <div class="fcell"><div class="k">Ruina en el mes</div><div class="v" id="mcRuin">0%</div><div class="sub">prob. de vaciar la cuenta al menos una vez</div></div>
+        <div class="fcell"><div class="k">Peor basket alcanzado</div><div class="v" id="mcWorst">ninguno</div><div class="sub">profundidad y pérdida por stop-out forzado</div></div>
+      </div>
+      <div class="sub" id="mcSub" style="margin-top:8px;opacity:.75"></div>
+    </div>
+    <div class="keep-block" id="oosBlock" style="display:none">
+      <div class="subhead">Validación out-of-sample (partición temporal 70/30)</div>
+      <div class="fgrid fgrid3">
+        <div class="fcell"><div class="k">Ciclos entrenamiento / test</div><div class="v" id="oosSplit">0 / 0</div><div class="sub">calibra con el 70% más antiguo, predice el 30% más reciente</div></div>
+        <div class="fcell"><div class="k">Profundidad media: train → test</div><div class="v" id="oosDepth">0 → 0</div><div class="sub" id="oosDepthSub">desvío del modelo de profundidad</div></div>
+        <div class="fcell"><div class="k">Peor basket: train → test</div><div class="v" id="oosMaxN">n=0 → n=0</div><div class="sub" id="oosMaxNSub"></div></div>
+        <div class="fcell"><div class="k">Profit/ciclo: predicho vs real</div><div class="v" id="oosProfit">$0 vs $0</div><div class="sub">test predicho con la distribución de train, a los lotes reales del test</div></div>
+        <div class="fcell"><div class="k">Error de predicción</div><div class="v" id="oosErr">0%</div><div class="sub">esta es la métrica real de "efectividad" (0% = predicción perfecta; jamás será 0)</div></div>
+        <div class="fcell"><div class="k">Aviso de encuadre</div><div class="v" style="font-size:.82em;line-height:1.3">geometría actual</div><div class="sub">para un test justo, fija precio/cuenta al régimen del historial (el profit real ya es del periodo)</div></div>
+      </div>
+    </div>
     <div class="keep-block">
       <div class="subhead">Techo determinista (escenario extremo, peor caso)</div>
       <div class="fgrid fgrid3">
@@ -1115,7 +1138,7 @@ function simulate(p){
     const marginLevel=usedMargin>0?equity/usedMargin*100:Infinity;
     let cum=0;for(const o of orders)cum+=o.lot;
     trace.push({order:k-1,e:e_k,lot:orders[orders.length-1].lot,cumLots:Math.round(cum*100)/100,usedMargin,floatingLoss,equity,marginLevel,freeMargin});
-    if(freeMargin<marginNew){cause="no_margin";stopX=stopoutX(A,B,C,p.price,p.leverage,p.stopOut);broke=true;break;}
+    if(equity<(usedMargin+marginNew)*p.stopOut){cause="no_margin";stopX=stopoutX(A,B,C,p.price,p.leverage,p.stopOut);broke=true;break;}
     orders.push({e:e_k,lot:lot_k,oz:oz_k});
   }
   if(!broke){let [A,B]=totals();const C=p.capital-realized;stopX=stopoutX(A,B,C,p.price,p.leverage,p.stopOut);cause="max_orders";}
@@ -1163,7 +1186,7 @@ function AN_buildLevels(p){
         const priceNow=price-eNext, floatingLoss=A*eNext-B, equity=capital-floatingLoss;
         const usedMargin=A*priceNow/leverage, freeMargin=equity-usedMargin;
         const marginNew=ozNext*priceNow/leverage;
-        if(freeMargin>=marginNew){a_n=gridUsd;canEscalate=true;}
+        if(equity>=(usedMargin+marginNew)*so){a_n=gridUsd;canEscalate=true;} /*freno EA: nivel margen >= stop-out (20%), no >=100%*/
         else{a_n=xSoNow-e_n;canEscalate=false;}
       }
     } else {xSoNow=AN_stopoutX(A,B,capital,price,leverage,so); a_n=xSoNow-e_n; canEscalate=false;}
@@ -1458,7 +1481,7 @@ function parseMT5Report(text){
   // se convierten a USD reales dividiendo entre 100, igual que el resto del simulador.
   return {nCounts, hourCounts, hourProfitSum, totalCycles:validCycles, totalDays:days, totalVolume,
           totalCommission:totalCommission/100, rangeStart:minTime, rangeEnd:maxTime,
-          sumProfitUSD, sumProfitSqUSD, maxStreak, maxStreakLoss, regimeCounts, dominantLote,
+          sumProfitUSD, sumProfitSqUSD, maxStreak, maxStreakLoss, regimeCounts, dominantLote, cycleSeq:cycleList,
           avgProfitUSD: sumProfitUSD/validCycles, avgDepth};
 }
 
@@ -1504,6 +1527,8 @@ function mergeCalibration(stats){
   if(typeof EMP.sumProfitSqUSD!=='number') EMP.sumProfitSqUSD=0;
 
   for(const n in stats.nCounts){ EMP.nDist[n]=(EMP.nDist[n]||0)+stats.nCounts[n]; }
+  if(!Array.isArray(EMP.cycleSeq)) EMP.cycleSeq=[];
+  if(Array.isArray(stats.cycleSeq)) EMP.cycleSeq=EMP.cycleSeq.concat(stats.cycleSeq);
   for(let h=0;h<24;h++){
     EMP.hourlyDist[h]=(EMP.hourlyDist[h]||0)+stats.hourCounts[h];
     EMP.hourlyProfitSum[h]=(EMP.hourlyProfitSum[h]||0)+stats.hourProfitSum[h];
@@ -1646,7 +1671,7 @@ function AN_hybridEvCycle(levels, commissionPerLot, hourlyAdjustment){
     // la cola, lo mas robusto es normalizar el promedio ya calculado sobre el 100% de la masa
     // de probabilidad cubierta — asume que lo no observado se comporta como lo observado, en
     // vez de extrapolar con una formula que ya demostro fallar en varios casos reales.
-    ev /= pMassWithin;
+    ev += pTail*(-r.lossAt[N-1]); /*cola A: valorada como stop-out forzado real*/
   }
   if(hourlyAdjustment) ev += hourlyAdjustment;
   return ev;
@@ -1776,7 +1801,7 @@ function simulateLadder(){
       const pAnLadder={capital, leverage:S.leverage, price:S.price, ozPerLot:S.oz,
         lotsInicial:active.lote, mult:active.mult||S.mult, maxOrdenes:S.maxo,
         gridPips:S.gridPips, tpClassicPips:S.tpClasico, stopOutPct:S.so,
-        hybridStart:5, sigmaDay:VOL_SCENARIOS[S.volKey], commissionPerLot:S.commission};
+        hybridStart:4, sigmaDay:VOL_SCENARIOS[S.volKey], commissionPerLot:S.commission};
       selectActiveDistribution(active.lote);
       const cpd=EMP.cyclesPerDay*volMult*coverage;
       const h=AN_hybridForecast(pAnLadder, cpd, hourlyAdjLadder);
@@ -2025,7 +2050,7 @@ function AN_hybridForecast(p, cyclesPerDayOverride, hourlyAdjustment){
       // probabilidad teorica de ese nivel puede dispararse (ya demostrado con casos reales).
       // sea cual sea el tamaño de la cola, normalizar sobre la masa de probabilidad cubierta
       // es lo mas robusto: asume que lo no observado se comporta como lo observado.
-      EProfit /= pMassWithin; EOrders /= pMassWithin;
+      EProfit += pTailBeyond*(-lossAtNreal); EOrders += pTailBeyond*Nreal; /*cola A: stop-out forzado real*/
     }
 
     let cum=0; mayorBasket=Nreal;
@@ -2115,6 +2140,111 @@ function badge(el,ok,textOk,textMiss){
 }
 
 // ================= RENDER =================
+
+// ===== Monte-Carlo por bloques sobre ciclos reales (distribución mensual honesta) =====
+function mcGeom(pAn){
+  const levels=AN_buildLevels(pAn); const N=levels.length;
+  const comm=pAn.commissionPerLot||0.06;
+  const profitAt=levels.map(lv=>lv.A*lv.b-lv.floatingLoss-comm*lv.totalLots);
+  const li=N-1; const lossAtN=levels[li].A*levels[li].xSo-levels[li].B+comm*levels[li].totalLots;
+  return {N,profitAt,lossAtN};
+}
+function runMonteCarlo(pAn){
+  const seq=(EMP.cycleSeq||[]);
+  const depths=seq.map(c=>c.n).filter(n=>n>=1);
+  const L=depths.length; if(L<30) return null;
+  const g=mcGeom(pAn);
+  const cpm=Math.max(1,Math.round((EMP.cyclesPerDay||0)*21));
+  const nSims=2500, blockLen=20, cap=pAn.capital;
+  const monthly=[]; let ruin=0, worstDepth=0, worstLoss=0;
+  for(let sIt=0;sIt<nSims;sIt++){
+    let pnl=0, equity=cap, ruined=false, drew=0;
+    while(drew<cpm){
+      const start=(Math.random()*L)|0;
+      for(let k=0;k<blockLen && drew<cpm;k++,drew++){
+        const n=depths[(start+k)%L];
+        const pl=(n<g.N)? g.profitAt[n-1] : -g.lossAtN;
+        pnl+=pl; equity+=pl;
+        if(n>=g.N && n>worstDepth){worstDepth=n;worstLoss=g.lossAtN;}
+        if(equity<=cap*0.01) ruined=true;
+      }
+    }
+    monthly.push(pnl); if(ruined)ruin++;
+  }
+  monthly.sort((a,b)=>a-b);
+  const q=x=>monthly[Math.min(monthly.length-1,Math.floor(x*monthly.length))];
+  const losing=monthly.filter(x=>x<0).length/monthly.length;
+  return {N:g.N,lossAtN:g.lossAtN,p5:q(0.05),p50:q(0.5),p95:q(0.95),
+    losing,ruin:ruin/nSims,worstDepth,worstLoss,cpm,samples:L};
+}
+function renderMonteCarlo(pAn){
+  const el=id=>document.getElementById(id);
+  const box=el('mcBlock'); if(!box) return;
+  let r=null; try{ r=runMonteCarlo(pAn); }catch(e){ r=null; }
+  if(!r){ box.style.display='none'; return; }
+  box.style.display='';
+  const money=v=>(v>=0?'$':'−$')+nf(Math.abs(v));
+  el('mcP50').textContent=money(r.p50);
+  el('mcP5').textContent=money(r.p5);
+  el('mcP95').textContent=money(r.p95);
+  el('mcLose').textContent=(r.losing*100).toFixed(1)+'%';
+  el('mcRuin').textContent=(r.ruin*100).toFixed(2)+'%';
+  el('mcWorst').textContent = r.worstDepth>0 ? ('n='+r.worstDepth+' · '+money(-r.worstLoss)) : 'ninguno';
+  el('mcP5').className='v '+(r.p5>=0?'accent':'');
+  el('mcSub').textContent='2.500 meses simulados · '+nf(r.cpm)+' ciclos/mes · '+nf(r.samples)+' ciclos reales · bloques de 20 (preserva rachas) · N alcanzable='+r.N;
+}
+
+// ===== Validación out-of-sample: partición temporal 70/30 sobre ciclos reales =====
+function runOOS(){
+  const seq=(EMP.cycleSeq||[]).filter(c=>c && c.n>=1 && c.loteInicial>0);
+  if(seq.length<60) return null;
+  const sorted=seq.slice().sort((a,b)=>{
+    const ta=a.t0?new Date(a.t0).getTime():0, tb=b.t0?new Date(b.t0).getTime():0; return ta-tb; });
+  const cut=Math.floor(sorted.length*0.7);
+  const train=sorted.slice(0,cut), test=sorted.slice(cut);
+  if(train.length<40 || test.length<15) return null;
+  const cnt={}; let tot=0, maxNtrain=1;
+  for(const c of train){ cnt[c.n]=(cnt[c.n]||0)+1; tot++; if(c.n>maxNtrain)maxNtrain=c.n; }
+  const P=n=>(cnt[n]||0)/tot;
+  const Etrain=train.reduce((a,c)=>a+c.n,0)/train.length;
+  const Etest =test.reduce((a,c)=>a+c.n,0)/test.length;
+  let maxNtest=1; for(const c of test) if(c.n>maxNtest)maxNtest=c.n;
+  const base={capital:S.capital,leverage:S.leverage,price:S.price,ozPerLot:S.oz,mult:S.mult,
+    maxOrdenes:S.maxo,gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,
+    hybridStart:4,commissionPerLot:S.commission};
+  const gcache={};
+  const geomFor=lot=>{ const k=lot.toFixed(2); if(gcache[k])return gcache[k];
+    let g; try{ g=mcGeom(Object.assign({},base,{lotsInicial:lot})); }catch(e){ g=null; } gcache[k]=g; return g; };
+  let predSum=0, realSum=0, used=0;
+  for(const c of test){
+    const g=geomFor(c.loteInicial); if(!g) continue;
+    let ev=0; for(let n=1;n<=maxNtrain;n++){ const pl=(n<g.N)?g.profitAt[n-1]:-g.lossAtN; ev+=P(n)*pl; }
+    predSum+=ev; realSum+=c.profit; used++;
+  }
+  if(used<10) return null;
+  const predAvg=predSum/used, realAvg=realSum/used;
+  const err = realAvg!==0 ? (predAvg-realAvg)/Math.abs(realAvg) : (predAvg===0?0:1);
+  const depthErr = Etest!==0 ? (Etrain-Etest)/Math.abs(Etest) : 0;
+  return {train:train.length,test:test.length,Etrain,Etest,maxNtrain,maxNtest,predAvg,realAvg,err,depthErr};
+}
+function renderOOS(){
+  const el=id=>document.getElementById(id); const box=el('oosBlock'); if(!box) return;
+  let r=null; try{ r=runOOS(); }catch(e){ r=null; }
+  if(!r){ box.style.display='none'; return; }
+  box.style.display='';
+  const money=v=>(v>=0?'+$':'−$')+Math.abs(v).toFixed(2);
+  el('oosSplit').textContent=nf(r.train)+' / '+nf(r.test);
+  el('oosDepth').textContent=r.Etrain.toFixed(2)+' → '+r.Etest.toFixed(2);
+  el('oosDepthSub').textContent=(r.depthErr>=0?'+':'')+(r.depthErr*100).toFixed(0)+'% de desvío del modelo de profundidad';
+  el('oosMaxN').textContent='n='+r.maxNtrain+' → n='+r.maxNtest;
+  el('oosProfit').textContent=money(r.predAvg)+' vs '+money(r.realAvg);
+  const ae=Math.abs(r.err)*100;
+  el('oosErr').textContent=(r.err>=0?'+':'−')+ae.toFixed(0)+'%';
+  el('oosErr').className='v '+(ae<=35?'accent':'');
+  el('oosMaxNSub').textContent = r.maxNtest>r.maxNtrain
+    ? 'el periodo de test fue MÁS profundo que lo calibrado (riesgo subestimado)'
+    : 'lo calibrado ya cubría la profundidad del test';
+}
 function render(){
   readInputs(); syncLabels();
   if($('ladderTargetHint')) $('ladderTargetHint').textContent='Duplicar tu capital actual = $'+nf(S.capital*2);
@@ -2130,7 +2260,7 @@ function render(){
   const sigmaDay = VOL_SCENARIOS[S.volKey];
   const pAn={capital:S.capital,leverage:S.leverage,price:S.price,ozPerLot:S.oz,lotsInicial:S.lote,
     mult:S.mult,maxOrdenes:S.maxo,gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,
-    hybridStart:5, sigmaDay, commissionPerLot:S.commission};
+    hybridStart:4, sigmaDay, commissionPerLot:S.commission};
   const f=AN_fullForecast(pAn);            // teorico: riesgo/margen/supervivencia (conservador)
   // --- segundo escenario: mismo motor teorico, pero deteniendo la escalada en el umbral de
   // tu freno de margen (NivelMargenMinimoPct en el EA) en vez de en el stop-out real del broker.
@@ -2187,6 +2317,8 @@ function render(){
   $('fProfitDay').textContent=(h.EProfitDay>=0?'$':'−$')+nf2(Math.abs(h.EProfitDay));
   $('fCyclesDay').textContent=nf(h.cyclesPerDay)+' ciclos/día (calibrado con historial, '+S.volKey+')';
   $('fProfitMonth').textContent=(h.EProfitMonth>=0?'$':'−$')+nf(Math.abs(h.EProfitMonth));
+  renderMonteCarlo(pAn);
+  renderOOS();
 
   // ---- insight dinamico ----
   let insight='<b>Metodología:</b> este simulador combina dos motores. El <b>riesgo</b> (probabilidad de ruina, capital mínimo, margen, supervivencia) usa un modelo teórico conservador que asume mercado sin tendencia — no le regala ninguna ventaja a la estrategia, apropiado para dimensionar capital. '
@@ -2379,7 +2511,7 @@ function drawTable(r,f){
     if(!f||!f.PTpAt||idx<0||idx>=f.PTpAt.length) return null;
     return f.PTpAt[idx];
   };
-  const tpSched=AN_tpSchedule(S.tpClasico,5);
+  const tpSched=AN_tpSchedule(S.tpClasico,4);
   const balanceAtTP=(orderNum,cumLots)=>{
     const tpUsd=tpSched[Math.min(orderNum,50)-1]*0.10;
     const profitNeto=tpUsd*cumLots - cumLots*S.commission;
