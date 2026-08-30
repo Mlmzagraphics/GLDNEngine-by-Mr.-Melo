@@ -1269,9 +1269,9 @@ const BROKERS={
     hint:'Cuenta estándar: 1 lote = 100 oz. Stop-out 20%.'},
   vt_raw_ecn:{name:'VT Markets · RAW ECN', oz:100, so:20, cent:false,
     hint:'Cuenta estándar, spread bajo + comisión: 1 lote = 100 oz. Stop-out 20% (igual que STP).'},
-  vt_cent_stp:{name:'VT Markets · Cent STP', oz:1, so:20, cent:true,
+  vt_cent_stp:{name:'VT Markets · Cent STP', oz:1, so:20, cent:true, lev:500,
     hint:'Cuenta cent: 1 lote cent = 1 oz. Stop-out 20%.'},
-  vt_cent_ecn:{name:'VT Markets · Cent ECN', oz:1, so:20, cent:true,
+  vt_cent_ecn:{name:'VT Markets · Cent ECN', oz:1, so:20, cent:true, lev:500,
     hint:'Cuenta cent, spread bajo + comisión: 1 lote cent = 1 oz. Stop-out 20% (igual que STP).'},
   custom:{name:'Personalizado', cent:false,
     hint:'Ajusta a mano el contrato (oz/lote) según la ficha de tu bróker.'}
@@ -2652,6 +2652,7 @@ function setBroker(key,apply){
   S.broker=key; $('broker').value=key; const b=BROKERS[key];
   if(apply){
     if(b.oz!==undefined){S.oz=b.oz;[...$('ozSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.oz===b.oz)); $('ozCustom').value=b.oz;}
+    if(b.lev!==undefined){S.leverage=b.lev; [...$('levSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.lev===b.lev));}
     if(b.so!==undefined){S.so=b.so; $('so').value=b.so; S.margenFreno=b.so; $('margenFreno').value=b.so;}
     render();
   }
@@ -2777,7 +2778,7 @@ function loadState(){
       if(extra.margenFreno!==undefined){S.margenFreno=extra.margenFreno; $('margenFreno').value=extra.margenFreno;}
       if(extra.price!==undefined){S.price=extra.price;}
     }
-    if(vals.broker && BROKERS[vals.broker]) setBroker(vals.broker,false);
+    if(vals.broker && BROKERS[vals.broker]) setBroker(vals.broker, vals.broker!=='custom');
     return true;
   }catch(e){ return false; }
 }
