@@ -1105,7 +1105,7 @@ function __runIntro(){
     }catch(e){}
   }
   function sonidoTrazo(){ tono(180,0,.55,'sine',.05,420); } // barrido suave ascendente
-  function sonidoImpacto(){ tono(90,0,.16,'triangle',.16); tono(55,.02,.14,'sine',.12); }
+  function sonidoImpacto(){ tono(90,0,.16,'triangle',.16); tono(55,.02,.14,'sine',.12); tono(270,0,.15,'sine',.10,225); tono(450,.005,.12,'sine',.055); } // + armónicos (5ª/3ª) audibles en móvil
   function sonidoDestello(){ tono(1046,0,.09,'sine',.05); tono(1568,.07,.11,'sine',.05); tono(2093,.15,.14,'sine',.045); }
 
   // Todo el intro esta pensado para un recorrido continuo de principio a fin: cada fase
