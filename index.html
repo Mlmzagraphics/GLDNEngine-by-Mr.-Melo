@@ -954,6 +954,15 @@
         <div id="historySummary" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.6;margin:8px 0"></div>
         <button type="button" id="historyReset" class="reset" style="border-style:dashed">⊘ Poner calibración en cero (sin historial de fábrica)</button>
       </div>
+      <div class="card pad" style="margin-top:12px">
+        <div class="card-title">Cargar preset del EA (.set) — fuente de verdad de la geometría</div>
+        <p class="hint">Sube el <b>.set</b> con el que opera el EA ahora mismo (MT5: parámetros del EA → Cargar/Guardar → Guardar). El simulador toma de ahí la geometría real (lote, multiplicador, distancia, máx. órdenes, TP clásico, <b>HybridStart</b> y los 50 TPBasket) y proyecta sobre esa base hasta que lo cambies o lo quites. Los datos de cuenta (apalancamiento, stop-out, precio, comisión) siguen viniendo del bróker/precio; la frecuencia y la profundidad, de tus historiales.</p>
+        <input type="file" id="presetFile" accept=".set,.txt" style="width:100%;margin:10px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)">
+        <button type="button" id="presetUploadBtn" class="reset" style="margin-bottom:8px">⭱ Cargar preset del EA</button>
+        <p class="hint" id="presetStatus" style="min-height:16px"></p>
+        <div id="presetBadge" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gold);background:rgba(255,183,43,.08);border:1px solid rgba(255,183,43,.25);border-radius:8px;padding:8px 10px;margin:8px 0"></div>
+        <button type="button" id="presetReset2" class="reset" style="border-style:dashed;display:none">⊘ Quitar preset (volver a los sliders)</button>
+      </div>
 
 
   <div class="card pad" style="margin-top:12px">
@@ -1153,11 +1162,13 @@ function simulate(p){
 }
 
 // ================= MOTOR ANALITICO PROBABILISTICO (validado en Python/Node) =================
+let PRESET=null;
+const PRESET_KEY='goldenEnginePreset_v1';
 const AN_OFFICIAL_1_50=[21,21,21,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,
   61,61,63,63,63,65,65,65,67,67,67,69,69,69,71,71,71,73,73,73,75,75,75,77,77,77];
 
 function AN_tpSchedule(tpClassicPips,hybridStart){
-  const s=AN_OFFICIAL_1_50.slice();
+  const s=((PRESET&&PRESET.schedule&&PRESET.schedule.length>=50)?PRESET.schedule:AN_OFFICIAL_1_50).slice();
   for(let n=1;n<=hybridStart;n++) s[n-1]=tpClassicPips;
   return s;
 }
@@ -1801,7 +1812,7 @@ function simulateLadder(){
       const pAnLadder={capital, leverage:S.leverage, price:S.price, ozPerLot:S.oz,
         lotsInicial:active.lote, mult:active.mult||S.mult, maxOrdenes:S.maxo,
         gridPips:S.gridPips, tpClassicPips:S.tpClasico, stopOutPct:S.so,
-        hybridStart:4, sigmaDay:VOL_SCENARIOS[S.volKey], commissionPerLot:S.commission};
+        hybridStart:(PRESET?PRESET.hybridStart:4), sigmaDay:VOL_SCENARIOS[S.volKey], commissionPerLot:S.commission};
       selectActiveDistribution(active.lote);
       const cpd=EMP.cyclesPerDay*volMult*coverage;
       const h=AN_hybridForecast(pAnLadder, cpd, hourlyAdjLadder);
@@ -2211,7 +2222,7 @@ function runOOS(){
   let maxNtest=1; for(const c of test) if(c.n>maxNtest)maxNtest=c.n;
   const base={capital:S.capital,leverage:S.leverage,price:S.price,ozPerLot:S.oz,mult:S.mult,
     maxOrdenes:S.maxo,gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,
-    hybridStart:4,commissionPerLot:S.commission};
+    hybridStart:(PRESET?PRESET.hybridStart:4),commissionPerLot:S.commission};
   const gcache={};
   const geomFor=lot=>{ const k=lot.toFixed(2); if(gcache[k])return gcache[k];
     let g; try{ g=mcGeom(Object.assign({},base,{lotsInicial:lot})); }catch(e){ g=null; } gcache[k]=g; return g; };
@@ -2245,6 +2256,74 @@ function renderOOS(){
     ? 'el periodo de test fue MÁS profundo que lo calibrado (riesgo subestimado)'
     : 'lo calibrado ya cubría la profundidad del test';
 }
+
+// ===== Preset del EA (.set): fuente de verdad de la geometría del EA =====
+function parsePresetSet(text){
+  const out={schedule:new Array(50).fill(null)};
+  const lines=String(text).split(/\r?\n/);
+  for(let line of lines){
+    line=line.replace(/^\uFEFF/,'').trim();
+    if(!line || line[0]===';' || line[0]==='#') continue;
+    const eq=line.indexOf('='); if(eq<0) continue;
+    const key=line.slice(0,eq).trim();
+    let val=line.slice(eq+1).trim();
+    const bar=val.indexOf('||'); if(bar>=0) val=val.slice(0,bar).trim();
+    const num=parseFloat(val.replace(',','.'));
+    if(key==='LotsInicial') out.lote=num;
+    else if(key==='Multiplicador') out.mult=num;
+    else if(key==='MaxOrdenes') out.maxo=Math.round(num);
+    else if(key==='DistanciaPips') out.gridPips=num;
+    else if(key==='TP_Individual_Pips') out.tpClasico=num;
+    else if(key==='HybridStartOrder') out.hybridStart=Math.round(num);
+    else if(key==='HoraInicio') out.horaInicio=Math.round(num);
+    else if(key==='HoraFin') out.horaFin=Math.round(num);
+    else { const m=key.match(/^TPBasket(\d+)$/); if(m){ const i=+m[1]; if(i>=1&&i<=50&&isFinite(num)) out.schedule[i-1]=num; } }
+  }
+  out.filled=out.schedule.filter(x=>x!=null).length;
+  for(let i=0;i<50;i++) if(out.schedule[i]==null) out.schedule[i]=(i>0?out.schedule[i-1]:(out.tpClasico||21));
+  if(!out.hybridStart||out.hybridStart<1) out.hybridStart=1;
+  out.valid=(out.lote>0 && out.mult>0 && out.filled>0);
+  return out;
+}
+function savePreset(){ try{ localStorage.setItem(PRESET_KEY, JSON.stringify(PRESET)); }catch(e){} }
+function loadPreset(){
+  try{ const raw=localStorage.getItem(PRESET_KEY); if(!raw) return;
+    const p=JSON.parse(raw);
+    if(p && p.schedule && p.schedule.length>=50){ PRESET=p; updatePresetBadge(); }
+  }catch(e){}
+}
+function updatePresetBadge(){
+  const b=document.getElementById('presetBadge'), rm=document.getElementById('presetReset2');
+  if(!b) return;
+  if(PRESET){ b.style.display=''; b.innerHTML='✓ Operando desde preset: <b>'+PRESET.name+'</b> · HybridStart='+PRESET.hybridStart+' · '+(PRESET.filled||50)+' TPBasket cargados'; if(rm) rm.style.display=''; }
+  else { b.style.display='none'; if(rm) rm.style.display='none'; }
+}
+function applyPreset(pre,name){
+  PRESET={schedule:pre.schedule.slice(),hybridStart:pre.hybridStart||1,name:name||'preset',filled:pre.filled};
+  const setV=(id,v)=>{ const e=document.getElementById(id); if(e&&v!=null&&isFinite(v)) e.value=v; };
+  setV('lote',pre.lote); setV('mult',pre.mult); setV('grid',pre.gridPips);
+  setV('tpClasico',pre.tpClasico); setV('maxo',pre.maxo);
+  if(pre.horaInicio!=null) setV('horaInicio',pre.horaInicio);
+  if(pre.horaFin!=null) setV('horaFin',pre.horaFin);
+  savePreset(); updatePresetBadge(); render();
+}
+function clearPreset(){ PRESET=null; try{localStorage.removeItem(PRESET_KEY);}catch(e){} updatePresetBadge(); render(); }
+function handlePresetUpload(){
+  const f=document.getElementById('presetFile').files[0], st=document.getElementById('presetStatus');
+  if(!f){ if(st)st.textContent='Elige primero un archivo .set'; return; }
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const buf=rd.result, bytes=new Uint8Array(buf); let text;
+    if((bytes[0]===0xFF&&bytes[1]===0xFE)||(bytes.length>1&&bytes[1]===0x00)) text=new TextDecoder('utf-16le').decode(buf);
+    else text=new TextDecoder('utf-8').decode(buf);
+    const pre=parsePresetSet(text);
+    if(!pre.valid){ if(st)st.textContent='No pude leer parámetros válidos del .set (¿es un preset del EA?).'; return; }
+    applyPreset(pre, f.name.replace(/\.set$/i,''));
+    if(st)st.textContent='Preset cargado: HybridStart='+pre.hybridStart+', '+pre.filled+' TPBasket, lote '+pre.lote+', mult '+pre.mult+', dist '+pre.gridPips+' pips.';
+    document.getElementById('presetFile').value='';
+  }catch(e){ if(st)st.textContent='Error leyendo el preset: '+e.message; } };
+  rd.readAsArrayBuffer(f);
+}
 function render(){
   readInputs(); syncLabels();
   if($('ladderTargetHint')) $('ladderTargetHint').textContent='Duplicar tu capital actual = $'+nf(S.capital*2);
@@ -2260,7 +2339,7 @@ function render(){
   const sigmaDay = VOL_SCENARIOS[S.volKey];
   const pAn={capital:S.capital,leverage:S.leverage,price:S.price,ozPerLot:S.oz,lotsInicial:S.lote,
     mult:S.mult,maxOrdenes:S.maxo,gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,
-    hybridStart:4, sigmaDay, commissionPerLot:S.commission};
+    hybridStart:(PRESET?PRESET.hybridStart:4), sigmaDay, commissionPerLot:S.commission};
   const f=AN_fullForecast(pAn);            // teorico: riesgo/margen/supervivencia (conservador)
   // --- segundo escenario: mismo motor teorico, pero deteniendo la escalada en el umbral de
   // tu freno de margen (NivelMargenMinimoPct en el EA) en vez de en el stop-out real del broker.
@@ -2511,7 +2590,7 @@ function drawTable(r,f){
     if(!f||!f.PTpAt||idx<0||idx>=f.PTpAt.length) return null;
     return f.PTpAt[idx];
   };
-  const tpSched=AN_tpSchedule(S.tpClasico,4);
+  const tpSched=AN_tpSchedule(S.tpClasico,(PRESET?PRESET.hybridStart:4));
   const balanceAtTP=(orderNum,cumLots)=>{
     const tpUsd=tpSched[Math.min(orderNum,50)-1]*0.10;
     const profitNeto=tpUsd*cumLots - cumLots*S.commission;
@@ -2579,6 +2658,8 @@ function setBroker(key,apply){
 }
 
 $('historyUploadBtn').addEventListener('click', handleHistoryUpload);
+$('presetUploadBtn').addEventListener('click', handlePresetUpload);
+$('presetReset2').addEventListener('click', clearPreset);
 $('historyReset').addEventListener('click', ()=>{
   if(!confirm('¿Poner la calibración en cero? Esto borra TODO — incluido el historial de fábrica de ejemplo — y deja el simulador sin ningún ciclo calibrado, listo para que subas tus propios historiales desde cero.')) return;
   EMP = JSON.parse(JSON.stringify(EMP_ZERO));
@@ -2710,6 +2791,7 @@ loadCalibration();
 updateHistorySummary();
 if(!loadState()) setBroker('vt_std_stp',false);
 renderLadderRows();
+loadPreset();
 render();
 
 </script>
