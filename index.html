@@ -990,7 +990,7 @@
       <div class="card pad">
         <div class="card-title">Cargar historial real (MT5)</div>
         <p class="hint">Sube el archivo <b>ReportHistory-....html</b> exportado desde tu cuenta de MetaTrader 5 (Historial de cuenta → botón derecho → Guardar como informe → HTML). Cada archivo que subas se <b>combina</b> con lo ya calibrado — no lo reemplaza, así el simulador mejora con cada historial nuevo.</p>
-        <input type="file" id="historyFile" accept=".html,.htm" style="width:100%;margin:10px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)">
+        <input type="file" id="historyFile" accept=".html,.htm" multiple style="width:100%;margin:10px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)">
         <button type="button" id="historyUploadBtn" class="reset" style="margin-bottom:8px">⭱ Cargar y combinar calibración</button>
         <p class="hint" id="historyStatus" style="min-height:16px"></p>
         <div id="historySummary" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.6;margin:8px 0"></div>
@@ -1105,7 +1105,7 @@ function __runIntro(){
     }catch(e){}
   }
   function sonidoTrazo(){ tono(180,0,.55,'sine',.05,420); } // barrido suave ascendente
-  function sonidoImpacto(){ tono(90,0,.16,'triangle',.16); tono(55,.02,.14,'sine',.12); tono(270,0,.15,'sine',.10,225); tono(450,.005,.12,'sine',.055); } // + armónicos (5ª/3ª) audibles en móvil
+  function sonidoImpacto(){ tono(90,0,.16,'triangle',.16); tono(180,0,.16,'sine',.09,150); tono(55,.02,.14,'sine',.12); tono(270,0,.15,'sine',.10,225); tono(450,.005,.12,'sine',.055); } // grave + octava (cuerpo) + 5ª/3ª audibles en móvil
   function sonidoDestello(){ tono(1046,0,.09,'sine',.05); tono(1568,.07,.11,'sine',.05); tono(2093,.15,.14,'sine',.045); }
 
   // Todo el intro esta pensado para un recorrido continuo de principio a fin: cada fase
@@ -1724,40 +1724,35 @@ function updateHistorySummary(){
   el.innerHTML = html;
 }
 
-function handleHistoryUpload(){
-  const f=$('historyFile').files[0];
-  if(!f){ $('historyStatus').textContent='Elige primero un archivo (toca el campo de arriba).'; return; }
-  $('historyStatus').textContent='Leyendo '+f.name+'...';
-  f.arrayBuffer().then(buf=>{
-    let text;
+async function handleHistoryUpload(){
+  const files=Array.from(($('historyFile').files)||[]);
+  if(!files.length){ $('historyStatus').textContent='Elige uno o varios archivos (toca el campo de arriba; puedes seleccionar varios).'; return; }
+  let added=0, cyc=0, days=0, skipped=[], errored=[];
+  for(let idx=0; idx<files.length; idx++){
+    const f=files[idx];
+    $('historyStatus').textContent='Leyendo '+(idx+1)+'/'+files.length+': '+f.name+'…';
     try{
-      text=new TextDecoder('utf-16le').decode(buf);
-      if(!text.includes('Posiciones')) throw new Error('fallback');
-    }catch(e){
-      text=new TextDecoder('utf-8').decode(buf);
-    }
-    const res=parseMT5Report(text);
-    if(res.error){ $('historyStatus').textContent='⚠ '+res.error; return; }
-    const overlap = findOverlap(res.rangeStart.getTime(), res.rangeEnd.getTime());
-    if(overlap){
-      $('historyStatus').innerHTML = '⚠ <b>No se combinó.</b> Este archivo cubre '
-        +res.rangeStart.toLocaleDateString('es-ES')+' – '+res.rangeEnd.toLocaleDateString('es-ES')
-        +', que se solapa con un período ya calibrado ('+overlap.label+'). '
-        +'Subir el mismo período dos veces duplicaría los datos y falsearía la calibración. '
-        +'Sube un historial de fechas distintas, o si estás seguro de que quieres forzarlo, usa "Reiniciar calibración" primero.';
-      $('historyFile').value='';
-      return;
-    }
-    mergeCalibration(res);
-    saveCalibration();
-    if($('commission')){ $('commission').value=Math.round(EMP.commissionPerLot*1000)/1000; }
-    updateHistorySummary();
-    $('historyStatus').textContent='✓ Combinado: +'+nf(res.totalCycles)+' ciclos, +'+res.totalDays.toFixed(1)+' días de este archivo.';
-    $('historyFile').value='';
-    render();
-  }).catch(err=>{
-    $('historyStatus').textContent='⚠ Error al leer el archivo: '+err.message;
-  });
+      const buf=await f.arrayBuffer();
+      let text;
+      try{ text=new TextDecoder('utf-16le').decode(buf); if(!text.includes('Posiciones')) throw new Error('fb'); }
+      catch(e){ text=new TextDecoder('utf-8').decode(buf); }
+      const res=parseMT5Report(text);
+      if(res.error){ errored.push(f.name); continue; }
+      const overlap=findOverlap(res.rangeStart.getTime(), res.rangeEnd.getTime());
+      if(overlap){ skipped.push(f.name); continue; }
+      mergeCalibration(res); saveCalibration();
+      added++; cyc+=res.totalCycles; days+=res.totalDays;
+    }catch(err){ errored.push(f.name); }
+  }
+  if($('commission')){ $('commission').value=Math.round(EMP.commissionPerLot*1000)/1000; }
+  updateHistorySummary();
+  $('historyFile').value='';
+  let parts=[];
+  if(added) parts.push('✓ '+added+' archivo(s) combinado(s): +'+nf(cyc)+' ciclos, +'+days.toFixed(1)+' días');
+  if(skipped.length) parts.push('⚠ '+skipped.length+' omitido(s) por solape de fechas ya calibradas');
+  if(errored.length) parts.push('⚠ '+errored.length+' con error de lectura');
+  $('historyStatus').innerHTML = parts.length ? parts.join('. ')+'.' : 'No se procesó ningún archivo.';
+  render();
 }
 
 function AN_hybridEvCycle(levels, commissionPerLot, hourlyAdjustment){
