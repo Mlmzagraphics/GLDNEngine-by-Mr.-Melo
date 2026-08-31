@@ -884,7 +884,7 @@
 
         <div class="field">
           <label>Máximo operaciones <span class="val" id="lMax">50</span></label>
-          <input type="range" id="maxo" min="5" max="50" step="1" value="50">
+          <input type="range" id="maxo" min="5" max="100" step="1" value="50">
         </div>
 
         <button type="button" class="reset" id="reset">↺ Restaurar parámetros</button>
@@ -1036,29 +1036,71 @@
   </div>
 
   <div class="card pad manual" style="margin-top:12px">
-    <div class="card-title">Guía de uso</div>
+    <div class="card-title">Manual de uso (resumen operativo)</div>
 
     <div class="manual-block">
-      <div class="manual-h">Cómo usarlo</div>
+      <div class="manual-h">Qué es esto (y qué NO es)</div>
+      <p class="manual-glossary">Este simulador proyecta el comportamiento de <b>tu</b> EA (Golden Engine) a partir de dos cosas: la <b>física del margen</b> de tu cuenta y tu <b>historial real</b> de operaciones. <b>No predice el precio del oro</b> — nadie puede. Su valor es decirte, de antemano, cuánto aguanta tu cuenta, cuánto puede rendir de media y, sobre todo, <b>dónde está el riesgo de ruina</b>. Es honesto sobre lo que no sabe: por eso muestra rangos, peores casos y márgenes de error, no un número mágico.</p>
+    </div>
+
+    <div class="manual-block">
+      <div class="manual-h">Cómo usarlo, paso a paso</div>
       <ol class="manual-list">
-        <li><b>Bróker y cuenta</b> — elige tu preset de VT Markets (o ajusta contrato/stop-out a mano), tu capital real y apalancamiento.</li>
-        <li><b>Estrategia (EA)</b> — copia aquí los mismos inputs exactos que usa tu EA en MT5: lote inicial, multiplicador, distancia entre órdenes, TP.</li>
-        <li><b>Lee el chip "Techo de órdenes"</b> — arriba del todo. Es el dato que más importa: cuántas órdenes aguanta tu cuenta antes de que el bróker fuerce cierres.</li>
-        <li><b>Sube tu historial real</b> — opcional, recomendado. Cada archivo se combina con lo ya calibrado, nunca lo reemplaza.</li>
+        <li><b>Elige tu cuenta</b> en "Bróker / tipo de cuenta". Si operas cuenta <b>cent</b>, selecciona "VT Markets · Cent ECN" (fija contrato 1 oz, stop-out 20% y apalancamiento 1:500). Esto es distinto del botón USD/USC del plan de escalado, que solo cambia cómo se <i>muestran</i> las cifras.</li>
+        <li><b>Carga el preset del EA (.set)</b> — toma de tu archivo la geometría real (lote, multiplicador, distancia, HybridStart y los 50 TPBasket) para que el simulador coincida clavado con tu EA. Manda hasta que lo quites.</li>
+        <li><b>Pon tu capital real</b> y confirma apalancamiento y precio del oro actual.</li>
+        <li><b>Sube tu historial real de MT5</b> (varios a la vez si quieres). Cada archivo se <b>combina</b> con lo calibrado, nunca lo reemplaza. Con historial, los pronósticos dejan de ser teóricos.</li>
+        <li><b>Lee primero el "Techo de órdenes"</b> y la tabla "Canasto orden por orden".</li>
       </ol>
     </div>
 
     <div class="manual-block">
-      <div class="manual-h">Qué significa cada resultado clave</div>
+      <div class="manual-h">Qué significa cada parámetro que tú pones</div>
       <dl class="manual-glossary">
-        <dt>Techo de órdenes</dt><dd>límite real de tu cuenta — ahí el bróker empieza a cerrar posiciones a mercado.</dd>
-        <dt>Valor esperado por ciclo</dt><dd>rentabilidad media por ciclo, calibrada con tu historial real si lo subiste.</dd>
-        <dt>Capital mínimo necesario</dt><dd>capital para mantener el riesgo de ruina de un ciclo bajo tu objetivo.</dd>
-        <dt>Excursión al stop-out</dt><dd>cuánto tendría que moverse el oro en tu contra, sin ningún respiro, para agotar el margen.</dd>
+        <dt>Contrato (oz por lote)</dt><dd>Cent = 1 oz/lote; Estándar = 100 oz/lote. Define <b>qué significa</b> un lote — no cambia tu número de lote. El mismo 0.10 es 100× más exposición en estándar que en cent.</dd>
+        <dt>Apalancamiento / Stop-out</dt><dd>Datos de tu cuenta. El stop-out (20% en VT) es el nivel de margen donde el bróker empieza a cerrar posiciones a la fuerza.</dd>
+        <dt>Lote inicial · Multiplicador · Distancia</dt><dd>La geometría de la martingala: con qué lote arranca, cuánto lo multiplica en cada orden, y cada cuántos pips añade la siguiente.</dd>
+        <dt>TP clásico · HybridStart · TPBasket</dt><dd>Cómo cierra el canasto. HybridStart marca desde qué orden se usa la tabla de TP en lugar del TP fijo. Vienen del preset.</dd>
+        <dt>Máximo de órdenes</dt><dd>El tope que tenga tu EA (ahora admite hasta 100). Con capital grande y lote bajo el techo real de margen puede superar 50 — súbelo aquí <b>y en el EA</b> si quieres aprovecharlo.</dd>
       </dl>
     </div>
 
-    <p class="manual-foot">El EA lee el stop-out real de tu bróker directo de la cuenta y nunca envía una orden que no puede pagar. Este simulador existe para que sepas, de antemano, cuántas son.</p>
+    <div class="manual-block">
+      <div class="manual-h">Qué significa cada resultado y pronóstico</div>
+      <dl class="manual-glossary">
+        <dt>Techo de órdenes</dt><dd>Cuántas órdenes aguanta tu cuenta antes de agotar el margen. Es un <b>máximo teórico</b> (movimiento en línea recta): en la vida real revientas unas cuantas órdenes antes. Nunca lo uses entero.</dd>
+        <dt>Pérdida en stop-out</dt><dd>Lo que perderías si el canasto llega al tope y el bróker lo cierra. Tu peor caso por ciclo.</dd>
+        <dt>Profit por ciclo / día / mes</dt><dd>Rentabilidad media, calibrada con tu historial. En martingala la media la dominan los baskets profundos raros: importa más el peor caso que el promedio.</dd>
+        <dt>Frecuencia (baja / media / alta)</dt><dd>El mismo profit con 0,5× / 1× / 2× la frecuencia observada. "Media" usa tus ciclos/día reales.</dd>
+        <dt>Distribución mensual (Monte-Carlo)</dt><dd>Simula miles de meses con tus ciclos reales: mediana, <b>peor mes (P5)</b>, mejor mes, % de meses perdedores y <b>% de ruina</b>. Aquí ves la cola que el promedio esconde.</dd>
+        <dt>Validación out-of-sample</dt><dd>Calibra con tu pasado y predice tu presente, mostrando el <b>error real de predicción</b>. La medida honesta de cuánto fiarte.</dd>
+        <dt>Detección de régimen</dt><dd>Avisa si tus operaciones recientes se vuelven más profundas que tu calibración — señal de que el mercado cambió.</dd>
+        <dt>Comparador de lotes</dt><dd>Ordena muchos lotes por profit y por probabilidad de ruina a la vez, y marca el <b>mayor lote seguro</b>.</dd>
+        <dt>Rendimiento por hora</dt><dd>Qué horas de tu historial rinden mejor y peor — para afinar el horario del EA.</dd>
+      </dl>
+    </div>
+
+    <div class="manual-block">
+      <div class="manual-h">La tabla "Canasto orden por orden"</div>
+      <p class="manual-glossary">El canasto orden a orden. Columnas clave: <b>Dist. stop-out</b> (recorrido en contra que te queda desde cada orden), <b>Ganancia si cierra</b> (lo que ganarías si cierra a esa profundidad) y <b>% real llega</b> (qué porcentaje de tus ciclos reales llegó tan hondo). El <b>nivel de margen</b> se pone ámbar/rojo en peligro, y la fila de tu <b>peor basket real</b> queda marcada con ⚠.</p>
+    </div>
+
+    <div class="manual-block">
+      <div class="manual-h">Plan de escalado de capital</div>
+      <p class="manual-glossary">Proyecta cómo llevar la cuenta de X a Y subiendo el lote conforme crece el capital. El "colchón" (techo mínimo de órdenes) es tu red de seguridad: el generador elige el mayor lote cuyo techo cubra ese colchón. <b>Recomendado: colchón ≥ tu peor basket real</b> (te avisa si lo bajas). Si un tramo sale "No alcanzable", te dice cuál y el lote máximo seguro para ese capital.</p>
+    </div>
+
+    <div class="manual-block">
+      <div class="manual-h">Advertencias honestas</div>
+      <ul class="manual-list">
+        <li>El techo es un <b>máximo teórico</b>. Deja margen por debajo — tu propia historia ya reventó antes del techo.</li>
+        <li>La martingala gana casi siempre y pierde raras veces <b>mucho</b>. Un win-rate alto no es seguridad: mira el peor basket y la ruina.</li>
+        <li>Los pronósticos son de la <b>media</b>. Un mes malo o una racha profunda alargan el camino.</li>
+        <li>Cambiar de cuenta (cent↔USD) actualiza el contrato solo, pero <b>el lote lo ajustas tú</b>: no significa lo mismo en cada cuenta.</li>
+      </ul>
+    </div>
+
+    <p class="manual-foot">Para el detalle completo —cada fórmula, cada micro-decisión y el porqué de cada número— consulta el <b>Manual a fondo</b> (archivo aparte). Este resumen es para operar con criterio; el otro, para entenderlo todo.</p>
   </div>
 </div>
 
