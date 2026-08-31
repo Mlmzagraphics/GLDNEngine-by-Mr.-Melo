@@ -941,11 +941,12 @@
       <div class="card tbl-card">
         <div class="card-title" style="padding:16px 18px 0">Canasto orden por orden</div>
         <div class="swipe-hint">← desliza para ver todas las columnas →</div>
+        <div class="swipe-hint" style="opacity:.72">nivel de margen en <span style="color:#ffcf6a">ámbar</span>/<span style="color:#e5735e">rojo</span> = peligro · ⚠ y fondo rojizo = tu peor basket real y más allá</div>
         <div class="tbl-scroll">
           <table>
             <thead><tr>
               <th>Orden</th><th>Mov. ($)</th><th>Lote</th><th>Lotes acum.</th>
-              <th>Margen usado</th><th>Nivel margen</th><th>Pérdida flotante</th><th>Equity</th><th>Balance por orden</th><th>TP%</th>
+              <th>Margen usado</th><th>Nivel margen</th><th>Dist. stop-out</th><th>Equity</th><th>Ganancia si cierra</th><th>% real llega</th>
             </tr></thead>
             <tbody id="tbody"></tbody>
           </table>
@@ -2555,7 +2556,7 @@ function renderAdvanced(pAn){
   window.__advPAn=pAn; const el=id=>document.getElementById(id);
   try{ const rg=advRegime(); if(rg && el('advRegimeBlock')){ el('advRegime').textContent=rg.oAvg.toFixed(1)+' → '+rg.rAvg.toFixed(1)+' órd (máx '+rg.oMax+'→'+rg.rMax+')'; el('advRegimeSub').textContent=rg.alerta?'⚠ el mercado reciente está MÁS profundo que tu calibración — revisa el riesgo':'estable respecto a tu calibración'; el('advRegime').className='v '+(rg.alerta?'':'accent'); el('advRegimeBlock').style.display=''; } else if(el('advRegimeBlock')) el('advRegimeBlock').style.display='none'; }catch(e){}
   try{ selectActiveDistribution(pAn.lotsInicial); const analytic=AN_hybridForecast(pAn,EMP.cyclesPerDay,0).EProfitCycle; const mc=advMcMeanCycle(pAn);
-    if(mc!=null && el('advMcBlock')){ const diff=analytic!==0?Math.abs(analytic-mc)/Math.abs(analytic)*100:0; el('advMc').textContent='$'+analytic.toFixed(3)+' vs $'+mc.toFixed(3); el('advMcSub').textContent='analítico vs Monte-Carlo puro · diferencia '+diff.toFixed(1)+'% '+(diff<5?'(✓ dos métodos coinciden)':'(⚠ revisar)'); el('advMcBlock').style.display=''; } else if(el('advMcBlock')) el('advMcBlock').style.display='none'; }catch(e){}
+    if(mc!=null && el('advMcBlock')){ const diff=analytic!==0?Math.abs(analytic-mc)/Math.abs(analytic)*100:0; el('advMc').textContent='$'+analytic.toFixed(3)+' vs $'+mc.toFixed(3); el('advMcSub').textContent='analítico vs Monte-Carlo puro · diferencia '+diff.toFixed(1)+'% '+(diff<10?'(✓ dos métodos coinciden)':'(⚠ divergen — revisar)'); el('advMcBlock').style.display=''; } else if(el('advMcBlock')) el('advMcBlock').style.display='none'; }catch(e){}
   try{ const hrs=advHours(); if(hrs.length && el('advHoursBlock')){ const best=hrs[0], worst=hrs[hrs.length-1]; el('advHours').textContent='mejor h'+best.h+' (+$'+best.avgP.toFixed(2)+') · peor h'+worst.h+' ($'+worst.avgP.toFixed(2)+')'; el('advHoursSub').textContent='profit medio por ciclo según la hora del servidor (de tu historial)'; el('advHoursBlock').style.display=''; } else if(el('advHoursBlock')) el('advHoursBlock').style.display='none'; }catch(e){}
   try{ if(el('advExplain')) el('advExplain').textContent=advExplain(pAn); }catch(e){}
 }
@@ -2831,29 +2832,26 @@ function drawChart(r,capital){
 }
 
 function drawTable(r,f){
-  const pctAt=(orderNum)=>{
-    const idx=orderNum-1;
-    if(!f||!f.PTpAt||idx<0||idx>=f.PTpAt.length) return null;
-    return f.PTpAt[idx];
-  };
   const tpSched=AN_tpSchedule(S.tpClasico,(PRESET?PRESET.hybridStart:4));
-  const balanceAtTP=(orderNum,cumLots)=>{
-    const tpUsd=tpSched[Math.min(orderNum,50)-1]*0.10;
-    const profitNeto=tpUsd*cumLots - cumLots*S.commission;
-    return S.capital+profitNeto;
-  };
-  const fmtMoney=v=>{const d=Math.abs(v)>=100?0:2;return '$'+v.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});};
-  const p1=pctAt(1);
-  const bal1=balanceAtTP(1,r.orders[0].lot);
-  let rows=`<tr><td>1</td><td class="dim">0,0</td><td>${r.orders[0].lot.toFixed(2)}</td><td>${r.orders[0].lot.toFixed(2)}</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td><td class="accent-cell">${fmtMoney(bal1)}</td><td>${p1!==null?(p1*100).toFixed(2)+'%':'—'}</td></tr>`;
+  const gananciaAtTP=(orderNum,cumLots)=>{ const tpUsd=tpSched[Math.min(orderNum,50)-1]*0.10; return tpUsd*cumLots - cumLots*S.commission; };
+  const fmtMoney=v=>{const d=Math.abs(v)>=100?0:2;return (v<0?'−$':'$')+Math.abs(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});};
+  const tot=(EMP&&EMP.totalCycles)||0;
+  const pReach=(n)=>{ if(!tot) return null; let s=0; for(const k in EMP.nDist){ if(+k>=n) s+=EMP.nDist[k]; } return s/tot; };
+  const worst=advWorstBasket();
+  const stopX=(r&&isFinite(r.stopX))?r.stopX:null;
+  const mlColor=(ml)=> ml<30?'color:#e5735e;font-weight:700':(ml<70?'color:#ffcf6a':'');
+  const rowStyle=(n)=> (worst>0 && n>=worst)?' style="background:rgba(229,115,94,.12)"':'';
+  const pct=(v)=> v>=0.1?(v*100).toFixed(1)+'%':(v>0?(v*100).toFixed(2)+'%':'0%');
+  const g1=gananciaAtTP(1,r.orders[0].lot); const pr1=pReach(1);
+  let rows=`<tr><td>1</td><td class="dim">0,0</td><td>${r.orders[0].lot.toFixed(2)}</td><td>${r.orders[0].lot.toFixed(2)}</td><td class="dim">—</td><td class="dim">—</td><td>${stopX!=null?fmtMoney(stopX):'—'}</td><td class="dim">—</td><td class="accent-cell">${fmtMoney(g1)}</td><td>${pr1!=null?pct(pr1):'—'}</td></tr>`;
   r.trace.forEach(t=>{
-    const pct=pctAt(t.order+1);
-    const balance=balanceAtTP(t.order+1,t.cumLots);
-    rows+=`<tr><td>${t.order+1}</td><td>${t.e.toFixed(t.e<10?1:0).replace('.',',')}</td>`
+    const n=t.order+1; const g=gananciaAtTP(n,t.cumLots); const pr=pReach(n);
+    const dist=stopX!=null?fmtMoney(Math.max(0,stopX-t.e)):'—'; const ml=t.marginLevel;
+    rows+=`<tr${rowStyle(n)}><td>${n}${worst>0&&n===worst?' ⚠':''}</td><td>${t.e.toFixed(t.e<10?1:0).replace('.',',')}</td>`
       +`<td>${t.lot.toFixed(2)}</td><td>${t.cumLots.toFixed(2)}</td>`
-      +`<td>$${t.usedMargin.toFixed(2).replace('.',',')}</td><td>${t.marginLevel>9999?Math.round(t.marginLevel/1000)+'k':Math.round(t.marginLevel)}%</td>`
-      +`<td>$${t.floatingLoss.toFixed(1).replace('.',',')}</td><td>$${t.equity.toFixed(0)}</td>`
-      +`<td class="accent-cell">${fmtMoney(balance)}</td><td>${pct!==null?(pct*100).toFixed(2)+'%':'—'}</td></tr>`;});
+      +`<td>$${t.usedMargin.toFixed(2).replace('.',',')}</td><td style="${mlColor(ml)}">${ml>9999?Math.round(ml/1000)+'k':Math.round(ml)}%</td>`
+      +`<td>${dist}</td><td>$${t.equity.toFixed(0)}</td>`
+      +`<td class="accent-cell">${fmtMoney(g)}</td><td>${pr!=null?pct(pr):'—'}</td></tr>`;});
   $('tbody').innerHTML=rows;
 }
 
