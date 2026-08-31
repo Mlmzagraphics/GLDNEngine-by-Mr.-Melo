@@ -669,6 +669,28 @@
         <div class="fcell"><div class="k">Aviso de encuadre</div><div class="v" style="font-size:.82em;line-height:1.3">geometría actual</div><div class="sub">para un test justo, fija precio/cuenta al régimen del historial (el profit real ya es del periodo)</div></div>
       </div>
     </div>
+    <div class="keep-block" id="advRegimeBlock" style="display:none">
+      <div class="subhead">Detección de cambio de régimen</div>
+      <div class="fgrid"><div class="fcell"><div class="k">Profundidad: calibración → reciente</div><div class="v accent" id="advRegime">—</div><div class="sub" id="advRegimeSub"></div></div></div>
+    </div>
+    <div class="keep-block" id="advMcBlock" style="display:none">
+      <div class="subhead">Validación independiente del profit</div>
+      <div class="fgrid"><div class="fcell"><div class="k">Analítico vs Monte-Carlo puro (por ciclo)</div><div class="v" id="advMc">—</div><div class="sub" id="advMcSub"></div></div></div>
+    </div>
+    <div class="keep-block" id="advHoursBlock" style="display:none">
+      <div class="subhead">Rendimiento por hora</div>
+      <div class="fgrid"><div class="fcell"><div class="k">Mejor / peor hora</div><div class="v" id="advHours">—</div><div class="sub" id="advHoursSub"></div></div></div>
+    </div>
+    <div class="keep-block">
+      <div class="subhead">Por qué (explicación)</div>
+      <p class="hint" id="advExplain" style="font-size:.92em;line-height:1.4"></p>
+    </div>
+    <div class="keep-block">
+      <div class="subhead">Comparador de lotes — profit vs ruina</div>
+      <button type="button" id="advCompareBtn" class="reset" style="margin-bottom:8px">⚖ Comparar todos los lotes a este capital</button>
+      <p class="hint" id="advCompareNote" style="min-height:16px"></p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--bone)"><tbody id="advCompareTable"></tbody></table></div>
+    </div>
     <div class="keep-block">
       <div class="subhead">Techo determinista (escenario extremo, peor caso)</div>
       <div class="fgrid fgrid3">
@@ -1441,6 +1463,11 @@ function selectActiveDistribution(lote){
     const pRegime=countAtN/regimeCycles;
     blend[n]=wN*pRegime + (1-wN)*pGeneral;
   }
+  // NORMALIZAR: la mezcla con pesos por-nivel no suma 1 por sí sola; sin esto, el residuo
+  // aparece como una "cola" fantasma (pTailBeyond) que, multiplicada por la enorme pérdida
+  // de stop-out, distorsiona el profit (lo hunde o lo infla según el lote).
+  let _bsum=0; for(const k in blend) _bsum+=blend[k];
+  if(_bsum>0){ for(const k in blend) blend[k]/=_bsum; }
   ACTIVE_BLEND=blend;
   return ACTIVE_REGIME_INFO;
 }
@@ -1916,7 +1943,16 @@ function simulateLadder(){
       for(const r of sorted){ if(r.from>capital && r.from<nextThreshold) nextThreshold=r.from; }
 
       if(profitDay<=0){
-        milestones.push({day, capital, lote:active.lote, mult:active.mult||S.mult, profitDay, unreachable:true});
+        // buscar el lote máximo que SÍ daría profit/día > 0 a este capital (lotes menores son más seguros)
+        let maxSafe=0;
+        for(let l=0.01; l<=active.lote+1e-9; l=Math.round((l+0.01)*100)/100){
+          const pTest=Object.assign({}, pAnLadder, {lotsInicial:l});
+          selectActiveDistribution(l);
+          const ht=AN_hybridForecast(pTest, cpd, hourlyAdjLadder);
+          if(ht.EProfitDay>0) maxSafe=l;
+        }
+        selectActiveDistribution(active.lote);
+        milestones.push({day, capital, lote:active.lote, mult:active.mult||S.mult, profitDay, unreachable:true, maxSafe});
         break;
       }
       const daysNeeded=(nextThreshold-capital)/profitDay;
@@ -2030,7 +2066,14 @@ function updateLadderResults(results){
     $('ladderDaysMediaSub').textContent='≈ '+(media.totalDays/30).toFixed(1)+' meses';
   } else {
     $('ladderDaysMedia').textContent='No alcanzable';
-    $('ladderDaysMediaSub').textContent='con este plan';
+    const blk=media.milestones.find(m=>m.unreachable);
+    if(blk){
+      const capTxt=ladderUnit==='usc'?(nf(Math.round(blk.capital*100))+' USC'):('$'+nf(blk.capital));
+      const safe=(blk.maxSafe>0)?('baja ese lote a máximo '+blk.maxSafe.toFixed(2)):'ese capital no admite ni 0.01 con seguridad — sube el capital o baja el colchón';
+      $('ladderDaysMediaSub').innerHTML='se bloquea desde '+capTxt+' con lote '+blk.lote.toFixed(2)+' (su techo no cubre tu peor basket): '+safe;
+    } else {
+      $('ladderDaysMediaSub').textContent='con este plan';
+    }
   }
   $('ladderDaysBaja').textContent=yaAlcanzado(results.baja)?'Ya lo alcanzaste':(results.baja.reached?(Math.round(results.baja.totalDays)+' días'):'No alcanzable');
   $('ladderDaysBajaSub').textContent=yaAlcanzado(results.baja)?'0,5× frecuencia':(results.baja.reached?('≈ '+(results.baja.totalDays/30).toFixed(1)+' meses · 0,5× frecuencia'):'0,5× frecuencia');
@@ -2045,7 +2088,8 @@ function updateLadderResults(results){
       const d=new Date(today.getTime()+m.day*86400000);
       rows+='<tr><td><b>Meta</b></td><td>'+fmtCap(m.capital)+'</td><td>—</td><td>—</td><td>'+Math.round(m.day)+'</td><td>'+d.toLocaleDateString('es-ES')+'</td><td>—</td></tr>';
     } else if(m.unreachable){
-      rows+='<tr><td>'+(i+1)+'</td><td>'+fmtCap(m.capital)+'</td><td>'+m.lote.toFixed(2)+'</td><td>'+m.mult.toFixed(2)+'</td><td colspan="3">⚠ No alcanzable con este lote (profit/día ≤ $0)</td></tr>';
+      const safeTxt=(m.maxSafe>0)?('⚠ Lote muy alto aquí — baja a máx. '+m.maxSafe.toFixed(2)):'⚠ Capital insuficiente para este colchón';
+      rows+='<tr><td>'+(i+1)+'</td><td>'+fmtCap(m.capital)+'</td><td>'+m.lote.toFixed(2)+'</td><td>'+m.mult.toFixed(2)+'</td><td colspan="3">'+safeTxt+'</td></tr>';
     } else {
       const d=new Date(today.getTime()+m.day*86400000);
       rows+='<tr><td>'+(i+1)+'</td><td>'+fmtCap(m.capital)+'</td><td>'+m.lote.toFixed(2)+'</td><td>'+m.mult.toFixed(2)+'</td><td>'+Math.round(m.day)+'</td><td>'+d.toLocaleDateString('es-ES')+'</td><td>$'+m.profitDay.toFixed(2)+'</td></tr>';
@@ -2467,6 +2511,64 @@ function generateLadderToTarget(){
     st.textContent=msg;
   }
 }
+
+// ===================== ANÁLISIS AVANZADO =====================
+function advWorstBasket(){ let w=0; const nd=(EMP&&EMP.nDist)||{}; for(const k in nd){ if(nd[k]>0 && +k>w) w=+k; } return w; }
+function advRegime(){
+  const s=(EMP.cycleSeq||[]).filter(c=>c&&c.n>=1); if(s.length<80) return null;
+  const cut=Math.floor(s.length*0.8), older=s.slice(0,cut), recent=s.slice(cut);
+  const avg=a=>a.reduce((x,c)=>x+c.n,0)/a.length, mx=a=>Math.max.apply(null,a.map(c=>c.n));
+  const oAvg=avg(older), rAvg=avg(recent), oMax=mx(older), rMax=mx(recent);
+  const drift=oAvg>0?(rAvg-oAvg)/oAvg:0;
+  return {oAvg,rAvg,oMax,rMax,drift, alerta:(drift>0.15||rMax>oMax)};
+}
+function advMcMeanCycle(pAn){
+  const lv=AN_buildLevels(pAn); const N=lv.length; const comm=pAn.commissionPerLot||0.06;
+  const profitAt=lv.map(l=>l.A*l.b-l.floatingLoss-comm*l.totalLots);
+  const li=N-1; const lossAtN=lv[li].A*lv[li].xSo-lv[li].B+comm*lv[li].totalLots;
+  const depths=(EMP.cycleSeq||[]).map(c=>c.n).filter(n=>n>=1); const L=depths.length; if(L<30) return null;
+  let sum=0,K=60000; for(let i=0;i<K;i++){const n=depths[(Math.random()*L)|0]; sum+=(n<N?profitAt[n-1]:-lossAtN);} return sum/K;
+}
+function advHours(){
+  const s=EMP.cycleSeq||[]; const byH={};
+  for(const c of s){ if(!c.t0)continue; const parts=String(c.t0).split(' '); if(parts.length<2)continue; const h=parseInt(parts[1].split(':')[0],10); if(isNaN(h))continue; byH[h]=byH[h]||{n:0,sumN:0,sumP:0}; byH[h].n++; byH[h].sumN+=c.n; byH[h].sumP+=(c.profit||0);}
+  const rows=Object.keys(byH).map(h=>({h:+h,cycles:byH[h].n,avgN:byH[h].sumN/byH[h].n,avgP:byH[h].sumP/byH[h].n})).filter(r=>r.cycles>=10);
+  rows.sort((a,b)=>b.avgP-a.avgP); return rows;
+}
+function advExplain(pAn){
+  const N=AN_buildLevels(pAn).length; const worst=advWorstBasket();
+  selectActiveDistribution(pAn.lotsInicial);
+  const h=AN_hybridForecast(pAn, EMP.cyclesPerDay, 0);
+  let s='Con $'+nf(pAn.capital)+' y lote '+(+pAn.lotsInicial).toFixed(2)+', tu techo alcanzable es '+N+' órdenes. ';
+  if(N>worst) s+='Cubre tu peor basket real observado ('+worst+'), por eso el pronóstico es positivo (~$'+h.EProfitDay.toFixed(0)+'/día). Si bajaras el capital, el techo caería y podría dejar de cubrirlo.';
+  else s+='NO cubre tu peor basket real ('+worst+'): un basket profundo tocaría stop-out, y por eso el pronóstico baja. Baja el lote o sube el capital para que el techo supere '+worst+'.';
+  return s;
+}
+function advParamCompare(pAn){
+  const rows=[]; const pStopout=N=>{let p=0;for(const k in EMP.nDist){if(+k>=N)p+=EMP.nDist[k]/(EMP.totalCycles||1);}return p;};
+  for(let i=1;i<=25;i++){ const l=Math.round(i)/100; const pp=Object.assign({},pAn,{lotsInicial:l});
+    selectActiveDistribution(l); const N=AN_buildLevels(pp).length; const pd=AN_hybridForecast(pp,EMP.cyclesPerDay,0).EProfitDay; const ru=pStopout(N);
+    rows.push({l,N,pd,ru}); }
+  return rows;
+}
+function renderAdvanced(pAn){
+  window.__advPAn=pAn; const el=id=>document.getElementById(id);
+  try{ const rg=advRegime(); if(rg && el('advRegimeBlock')){ el('advRegime').textContent=rg.oAvg.toFixed(1)+' → '+rg.rAvg.toFixed(1)+' órd (máx '+rg.oMax+'→'+rg.rMax+')'; el('advRegimeSub').textContent=rg.alerta?'⚠ el mercado reciente está MÁS profundo que tu calibración — revisa el riesgo':'estable respecto a tu calibración'; el('advRegime').className='v '+(rg.alerta?'':'accent'); el('advRegimeBlock').style.display=''; } else if(el('advRegimeBlock')) el('advRegimeBlock').style.display='none'; }catch(e){}
+  try{ selectActiveDistribution(pAn.lotsInicial); const analytic=AN_hybridForecast(pAn,EMP.cyclesPerDay,0).EProfitCycle; const mc=advMcMeanCycle(pAn);
+    if(mc!=null && el('advMcBlock')){ const diff=analytic!==0?Math.abs(analytic-mc)/Math.abs(analytic)*100:0; el('advMc').textContent='$'+analytic.toFixed(3)+' vs $'+mc.toFixed(3); el('advMcSub').textContent='analítico vs Monte-Carlo puro · diferencia '+diff.toFixed(1)+'% '+(diff<5?'(✓ dos métodos coinciden)':'(⚠ revisar)'); el('advMcBlock').style.display=''; } else if(el('advMcBlock')) el('advMcBlock').style.display='none'; }catch(e){}
+  try{ const hrs=advHours(); if(hrs.length && el('advHoursBlock')){ const best=hrs[0], worst=hrs[hrs.length-1]; el('advHours').textContent='mejor h'+best.h+' (+$'+best.avgP.toFixed(2)+') · peor h'+worst.h+' ($'+worst.avgP.toFixed(2)+')'; el('advHoursSub').textContent='profit medio por ciclo según la hora del servidor (de tu historial)'; el('advHoursBlock').style.display=''; } else if(el('advHoursBlock')) el('advHoursBlock').style.display='none'; }catch(e){}
+  try{ if(el('advExplain')) el('advExplain').textContent=advExplain(pAn); }catch(e){}
+}
+function renderComparator(){
+  const pAn=window.__advPAn; if(!pAn) return;
+  const rows=advParamCompare(pAn); const worst=advWorstBasket();
+  const seguros=rows.filter(r=>r.ru<=0); const bestSafe=seguros.length?seguros.reduce((a,b)=>b.pd>a.pd?b:a):null;
+  let html='<tr><th style="text-align:left;padding:6px 10px">Lote</th><th style="padding:6px 10px">Techo</th><th style="padding:6px 10px">Profit/día</th><th style="padding:6px 10px">Ruina/ciclo</th><th style="padding:6px 10px"></th></tr>';
+  for(const r of rows){ const safe=r.ru<=0; const isBest=bestSafe&&Math.abs(r.l-bestSafe.l)<1e-9;
+    html+='<tr'+(isBest?' style="background:rgba(255,183,43,.14)"':'')+'><td style="padding:6px 10px">'+r.l.toFixed(2)+'</td><td style="text-align:center;padding:6px 10px">'+r.N+'</td><td style="text-align:right;padding:6px 10px">$'+r.pd.toFixed(0)+'</td><td style="text-align:right;padding:6px 10px">'+(r.ru*100).toFixed(3)+'%</td><td style="padding:6px 10px">'+(safe?'seguro':'riesgo')+(isBest?' ⭐':'')+'</td></tr>'; }
+  document.getElementById('advCompareTable').innerHTML=html;
+  document.getElementById('advCompareNote').textContent = bestSafe ? ('⭐ Mejor lote seguro (ruina 0) a $'+nf(pAn.capital)+': '+bestSafe.l.toFixed(2)+' → $'+bestSafe.pd.toFixed(0)+'/día. Por encima, el techo deja de cubrir tu peor basket ('+worst+').') : ('Ningún lote mantiene ruina 0 a $'+nf(pAn.capital)+' — sube el capital para tener margen.');
+}
 function render(){
   readInputs(); syncLabels();
   if($('ladderTargetHint')) $('ladderTargetHint').textContent='Duplicar tu capital actual = $'+nf(S.capital*2);
@@ -2541,6 +2643,7 @@ function render(){
   $('fProfitMonth').textContent=(h.EProfitMonth>=0?'$':'−$')+nf(Math.abs(h.EProfitMonth));
   renderMonteCarlo(pAn);
   renderOOS();
+  renderAdvanced(pAn);
 
   // ---- insight dinamico ----
   let insight='<b>Metodología:</b> este simulador combina dos motores. El <b>riesgo</b> (probabilidad de ruina, capital mínimo, margen, supervivencia) usa un modelo teórico conservador que asume mercado sin tendencia — no le regala ninguna ventaja a la estrategia, apropiado para dimensionar capital. '
@@ -2839,6 +2942,7 @@ $('ladderTarget').addEventListener('input',()=>{
   ladderTargetUSD=ladderToUSD(+$('ladderTarget').value||0);
 });
 $('ladderGenerate').addEventListener('click', generateLadderToTarget);
+$('advCompareBtn') && $('advCompareBtn').addEventListener('click', renderComparator);
 $('ladderAddRow').addEventListener('click',()=>{
   const last=ladderRows[ladderRows.length-1];
   const nuevoFrom=last?last.from+1000:2000;
