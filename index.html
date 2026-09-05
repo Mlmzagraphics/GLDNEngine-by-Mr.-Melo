@@ -1100,7 +1100,7 @@
       </ul>
     </div>
 
-    <p class="manual-foot">Para el detalle completo —cada fórmula, cada micro-decisión y el porqué de cada número— consulta el <b>Manual a fondo</b> (archivo aparte). Este resumen es para operar con criterio; el otro, para entenderlo todo.</p>
+    <p class="manual-foot">Para el detalle completo —cada fórmula, cada micro-decisión y el porqué de cada número— consulta el <b>Manual técnico</b> (archivo aparte). Este resumen es para operar con criterio; el otro, para entenderlo todo.</p>
   </div>
 </div>
 
@@ -1659,9 +1659,12 @@ function parseMT5Report(text){
 
   // nota: en cuentas cent (USC) los valores del reporte vienen en centavos de USD;
   // se convierten a USD reales dividiendo entre 100, igual que el resto del simulador.
+  let account=''; { const am=text.match(/Cuenta de trading[\s\S]{0,120}?(\d{5,10})/i)||text.match(/(?:Account|Login|Cuenta)[^\d]{0,40}(\d{5,10})/i); if(am) account=am[1]; }
+  const _t0=(minTime&&minTime.getTime)?minTime.getTime():0, _t1=(maxTime&&maxTime.getTime)?maxTime.getTime():0;
+  const dupSig = account+'|'+_t0+'|'+_t1+'|'+validCycles+'|'+Math.round(totalVolume*100)+'|'+Math.round(sumProfitUSD*100)+'|'+(dominantLote||'');
   return {nCounts, hourCounts, hourProfitSum, totalCycles:validCycles, totalDays:days, totalVolume,
           totalCommission:totalCommission/100, rangeStart:minTime, rangeEnd:maxTime,
-          sumProfitUSD, sumProfitSqUSD, maxStreak, maxStreakLoss, regimeCounts, dominantLote, cycleSeq:cycleList,
+          sumProfitUSD, sumProfitSqUSD, maxStreak, maxStreakLoss, regimeCounts, dominantLote, account, dupSig, cycleSeq:cycleList,
           avgProfitUSD: sumProfitUSD/validCycles, avgDepth};
 }
 
@@ -1808,9 +1811,9 @@ async function handleHistoryUpload(){
       catch(e){ text=new TextDecoder('utf-8').decode(buf); }
       const res=parseMT5Report(text);
       if(res.error){ errored.push(f.name); continue; }
-      const overlap=findOverlap(res.rangeStart.getTime(), res.rangeEnd.getTime());
-      if(overlap){ skipped.push(f.name); continue; }
-      mergeCalibration(res); saveCalibration();
+      if(!Array.isArray(EMP.sigs)) EMP.sigs=[];
+      if(res.dupSig && EMP.sigs.includes(res.dupSig)){ skipped.push(f.name); continue; } // solo el MISMO informe exacto
+      mergeCalibration(res); if(res.dupSig) EMP.sigs.push(res.dupSig); saveCalibration();
       added++; cyc+=res.totalCycles; days+=res.totalDays;
     }catch(err){ errored.push(f.name); }
   }
@@ -1819,7 +1822,7 @@ async function handleHistoryUpload(){
   $('historyFile').value='';
   let parts=[];
   if(added) parts.push('✓ '+added+' archivo(s) combinado(s): +'+nf(cyc)+' ciclos, +'+days.toFixed(1)+' días');
-  if(skipped.length) parts.push('⚠ '+skipped.length+' omitido(s) por solape de fechas ya calibradas');
+  if(skipped.length) parts.push('⚠ '+skipped.length+' omitido(s) por ser el mismo informe ya cargado (duplicado exacto)');
   if(errored.length) parts.push('⚠ '+errored.length+' con error de lectura');
   $('historyStatus').innerHTML = parts.length ? parts.join('. ')+'.' : 'No se procesó ningún archivo.';
   render();
