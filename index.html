@@ -2592,8 +2592,13 @@ function advExplain(pAn){
 }
 function advParamCompare(pAn){
   const rows=[]; const pStopout=N=>{let p=0;for(const k in EMP.nDist){if(+k>=N)p+=EMP.nDist[k]/(EMP.totalCycles||1);}return p;};
+  // misma base que el panel de frecuencia: cobertura horaria + ajuste por hora + escenario seleccionado
+  const coverage=hourlyCoverage(S.horaInicio,S.horaFin);
+  const hourlyAdj=hourlyQualityAdjustment(S.horaInicio,S.horaFin);
+  const volMult=({baja:0.5,media:1.0,alta:2.0})[S.volKey]||1.0;
+  const cpd=EMP.cyclesPerDay*volMult*coverage;
   for(let i=1;i<=25;i++){ const l=Math.round(i)/100; const pp=Object.assign({},pAn,{lotsInicial:l});
-    selectActiveDistribution(l); const N=AN_buildLevels(pp).length; const pd=AN_hybridForecast(pp,EMP.cyclesPerDay,0).EProfitDay; const ru=pStopout(N);
+    selectActiveDistribution(l); const N=AN_buildLevels(pp).length; const pd=AN_hybridForecast(pp,cpd,hourlyAdj).EProfitDay; const ru=pStopout(N);
     rows.push({l,N,pd,ru}); }
   return rows;
 }
