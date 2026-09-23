@@ -790,7 +790,7 @@
         </div>
 
         <div class="field">
-          <label>Apalancamiento</label>
+          <label>Apalancamiento del oro (margen real) <span class="val" id="lLevGold">1:100</span></label>
           <div class="segs wrap4" id="levSegs">
             <button type="button" class="seg on" data-lev="100">1:100</button>
             <button type="button" class="seg" data-lev="200">1:200</button>
@@ -903,7 +903,20 @@
           <div class="field">
             <label>Comisión por lote (USD, round-turn) <span class="val" id="lComm">$6,00</span></label>
             <input type="range" id="commission" min="0" max="1" step="0.01" value="0.06">
-            <p class="hint">Calibrada con historial real: $0,06/lote, confirmado en miles de órdenes reales sin excepción. (Antes se mostraba por error $6,00 — confusión de unidades USC/USD, ya corregida.)</p>
+            <p class="hint">Comisi&oacute;n de ida y vuelta por lote de tu cuenta ECN; se resta de cada ciclo.</p>
+          </div>
+          <div class="field">
+            
+            <div style="margin-top:10px;padding:12px 12px 10px;border:1px solid rgba(255,183,43,.22);border-radius:14px;background:linear-gradient(180deg,rgba(255,183,43,.05),rgba(255,183,43,.015))">
+              <div style="font-size:11px;letter-spacing:.14em;color:#c9a24a;margin-bottom:6px">CALIBRAR EL APALANCAMIENTO CON UN TECHO REAL</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+                <label style="font-size:10.5px;color:var(--muted);display:block;letter-spacing:.03em">Capital $<br><input type="number" id="calCap" value="1590" style="width:96px;text-align:right;padding:8px 10px;background:rgba(13,19,28,.55);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#f4ecd8;font-family:&quot;IBM Plex Mono&quot;,monospace;font-size:13px"></label>
+                <label style="font-size:10.5px;color:var(--muted);display:block;letter-spacing:.03em">Lote inicial<br><input type="number" id="calLot" value="0.03" step="0.01" style="width:84px;text-align:right;padding:8px 10px;background:rgba(13,19,28,.55);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#f4ecd8;font-family:&quot;IBM Plex Mono&quot;,monospace;font-size:13px"></label>
+                <label style="font-size:10.5px;color:var(--muted);display:block;letter-spacing:.03em">Techo real (&oacute;rd.)<br><input type="number" id="calN" value="36" style="width:96px;text-align:right;padding:8px 10px;background:rgba(13,19,28,.55);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#f4ecd8;font-family:&quot;IBM Plex Mono&quot;,monospace;font-size:13px"></label>
+                <button id="btnCalib" class="seg on" type="button" style="flex:0 0 auto;min-width:112px;min-height:42px;border-radius:13px">&#9881; Calibrar</button>
+              </div>
+              <p class="hint" id="calOut" style="margin-top:6px">Introduce un basket real que revent&oacute; (o que fren&oacute; el EA) y ajusto el apalancamiento del oro para que el techo previsto coincida. Cada dato real que metas afina m&aacute;s el modelo.</p>
+            </div>
           </div>
           <div class="field">
             <label>Objetivo de riesgo para capital mínimo
@@ -1298,23 +1311,24 @@ function lotAtLevel(n,lots,mult){return Math.round(lots*Math.pow(mult,n)*100)/10
 function stopoutX(A,B,C,price,lev,so){const d=A*(1-so/lev);if(d<=0)return Infinity;return (C+B-so*A*price/lev)/d;}
 function simulate(p){
   let orders=[],realized=0,trace=[],stopX=null,cause=null,broke=false;
+  const Lm=p.leverage;
   const lot1=lotAtLevel(0,p.lotsInicial,p.mult);
   orders.push({e:0,lot:lot1,oz:lot1*p.ozPerLot});
   const totals=()=>{let A=0,B=0;for(const o of orders){A+=o.oz;B+=o.oz*o.e;}return[A,B];};
   for(let k=2;k<=p.maxOrdenes;k++){
     const e_k=(k-1)*p.grid; let [A,B]=totals(); const C=p.capital-realized;
-    const xs=stopoutX(A,B,C,p.price,p.leverage,p.stopOut);
+    const xs=stopoutX(A,B,C,p.price,Lm,p.stopOut);
     if(xs<=e_k+1e-9){stopX=xs;cause="stopout_before";broke=true;break;}
-    const lot_k=lotAtLevel(k-1,p.lotsInicial,p.mult), oz_k=lot_k*p.ozPerLot, priceNow=p.price-e_k;
-    const floatingLoss=A*e_k-B, equity=C-floatingLoss, usedMargin=A*priceNow/p.leverage;
-    const freeMargin=equity-usedMargin, marginNew=oz_k*priceNow/p.leverage;
+    const lot_k=lotAtLevel(k-1,p.lotsInicial,p.mult), oz_k=lot_k*p.ozPerLot, priceNow=p.price+e_k;
+    const floatingLoss=A*e_k-B, equity=C-floatingLoss, usedMargin=A*priceNow/Lm;
+    const freeMargin=equity-usedMargin, marginNew=oz_k*priceNow/Lm;
     const marginLevel=usedMargin>0?equity/usedMargin*100:Infinity;
     let cum=0;for(const o of orders)cum+=o.lot;
     trace.push({order:k-1,e:e_k,lot:orders[orders.length-1].lot,cumLots:Math.round(cum*100)/100,usedMargin,floatingLoss,equity,marginLevel,freeMargin});
-    if(equity<(usedMargin+marginNew)*p.stopOut){cause="no_margin";stopX=stopoutX(A,B,C,p.price,p.leverage,p.stopOut);broke=true;break;}
+    if(equity<(usedMargin+marginNew)*p.stopOut){cause="no_margin";stopX=stopoutX(A,B,C,p.price,Lm,p.stopOut);broke=true;break;}
     orders.push({e:e_k,lot:lot_k,oz:oz_k});
   }
-  if(!broke){let [A,B]=totals();const C=p.capital-realized;stopX=stopoutX(A,B,C,p.price,p.leverage,p.stopOut);cause="max_orders";}
+  if(!broke){let [A,B]=totals();const C=p.capital-realized;stopX=stopoutX(A,B,C,p.price,Lm,p.stopOut);cause="max_orders";}
   const [A,B]=totals();
   const floatingAtSO=(stopX!==null&&isFinite(stopX))?A*stopX-B:null;
   let cumTot=0;for(const o of orders)cumTot+=o.lot;
@@ -1341,8 +1355,9 @@ function AN_stopoutX(A,B,C,price,lev,so){const d=A*(1-so/lev);if(d<=0)return Inf
 
 function AN_buildLevels(p){
   const {capital,leverage,price,ozPerLot,lotsInicial,mult,maxOrdenes,gridPips,tpClassicPips,
-         stopOutPct,hybridStart}=p;
+         stopOutPct,hybridStart,stressLeverage}=p;
   const gridUsd=gridPips*0.10;
+  const Lm=leverage;
   const tpSched=AN_tpSchedule(tpClassicPips,hybridStart);
   const so=stopOutPct/100;
   let A=AN_lot(1,lotsInicial,mult)*ozPerLot, B=0.0;
@@ -1354,17 +1369,17 @@ function AN_buildLevels(p){
     let a_n, canEscalate=false, xSoNow;
     if(n<maxOrdenes){
       const eNext=n*gridUsd;
-      xSoNow=AN_stopoutX(A,B,capital,price,leverage,so);
+      xSoNow=AN_stopoutX(A,B,capital,price,Lm,so);
       if(xSoNow<=eNext){a_n=xSoNow-e_n;canEscalate=false;}
       else{
         const lotNext=AN_lot(n+1,lotsInicial,mult), ozNext=lotNext*ozPerLot;
-        const priceNow=price-eNext, floatingLoss=A*eNext-B, equity=capital-floatingLoss;
-        const usedMargin=A*priceNow/leverage, freeMargin=equity-usedMargin;
-        const marginNew=ozNext*priceNow/leverage;
+        const priceNow=price+eNext, floatingLoss=A*eNext-B, equity=capital-floatingLoss; /* convención adversa: peor caso del movimiento */
+        const usedMargin=A*priceNow/Lm, freeMargin=equity-usedMargin;
+        const marginNew=ozNext*priceNow/Lm;
         if(equity>=(usedMargin+marginNew)*so){a_n=gridUsd;canEscalate=true;} /*freno EA: nivel margen >= stop-out (20%), no >=100%*/
         else{a_n=xSoNow-e_n;canEscalate=false;}
       }
-    } else {xSoNow=AN_stopoutX(A,B,capital,price,leverage,so); a_n=xSoNow-e_n; canEscalate=false;}
+    } else {xSoNow=AN_stopoutX(A,B,capital,price,Lm,so); a_n=xSoNow-e_n; canEscalate=false;}
     a_n=Math.max(a_n,1e-9);
     const floatingLossEn=A*e_n-B;
     const lotCur=AN_lot(n,lotsInicial,mult);
@@ -1411,7 +1426,7 @@ function AN_fullForecast(p){
   const cyclesPerDay=cycleDays>0?1/cycleDays:0;
   const EProfitDay=r.EProfitCycle*cyclesPerDay, EProfitMonth=EProfitDay*21;
   let EMargin=0;
-  for(let i=0;i<levels.length;i++){const w=r.PTpAt[i]+r.PRuinAt[i]; const priceNow=p.price-levels[i].e; EMargin+=w*(levels[i].A*priceNow/p.leverage);}
+  for(let i=0;i<levels.length;i++){const w=r.PTpAt[i]+r.PRuinAt[i]; const priceNow=p.price+levels[i].e; EMargin+=w*(levels[i].A*priceNow/p.leverage);}
   const mayorBasket=AN_percentile(r.V, 0.95);
   return {levels,Nreal:levels.length,PRuin:r.PRuin,PTp:r.PTp,EOrders:r.EOrders,EProfitCycle:r.EProfitCycle,
     EDd:r.EDd,EMargin,cycleDays,cyclesPerDay,EProfitDay,EProfitMonth,mayorBasket,PTpAt:r.PTpAt,PRuinAt:r.PRuinAt};
@@ -1433,9 +1448,9 @@ const BROKERS={
     hint:'Cuenta estándar: 1 lote = 100 oz. Stop-out 20%.'},
   vt_raw_ecn:{name:'VT Markets · RAW ECN', oz:100, so:20, cent:false,
     hint:'Cuenta estándar, spread bajo + comisión: 1 lote = 100 oz. Stop-out 20% (igual que STP).'},
-  vt_cent_stp:{name:'VT Markets · Cent STP', oz:1, so:20, cent:true, lev:500,
+  vt_cent_stp:{name:'VT Markets · Cent STP', oz:1, so:20, cent:true, lev:100,
     hint:'Cuenta cent: 1 lote cent = 1 oz. Stop-out 20%.'},
-  vt_cent_ecn:{name:'VT Markets · Cent ECN', oz:1, so:20, cent:true, lev:500,
+  vt_cent_ecn:{name:'VT Markets · Cent ECN', oz:1, so:20, cent:true, lev:100,
     hint:'Cuenta cent, spread bajo + comisión: 1 lote cent = 1 oz. Stop-out 20% (igual que STP).'},
   custom:{name:'Personalizado', cent:false,
     hint:'Ajusta a mano el contrato (oz/lote) según la ficha de tu bróker.'}
@@ -1976,7 +1991,7 @@ function simulateLadder(){
       for(const r of sorted){ if(capital>=r.from) active=r; }
       if(!active) active={from:0, lote:S.lote, mult:S.mult};
 
-      const pAnLadder={capital, leverage:S.leverage, price:S.price, ozPerLot:S.oz,
+      const pAnLadder={capital, leverage:S.leverage,stressLeverage:S.stressLeverage, price:S.price, ozPerLot:S.oz,
         lotsInicial:active.lote, mult:active.mult||S.mult, maxOrdenes:S.maxo,
         gridPips:S.gridPips, tpClassicPips:S.tpClasico, stopOutPct:S.so,
         hybridStart:(PRESET?PRESET.hybridStart:4), sigmaDay:VOL_SCENARIOS[S.volKey], commissionPerLot:S.commission};
@@ -2266,7 +2281,7 @@ function AN_hybridForecast(p, cyclesPerDayOverride, hourlyAdjustment){
 }
 
 // ================= ESTADO =================
-const S={capital:1000,leverage:100,lote:0.01,mult:1.20,gridPips:10,tpClasico:21,price:4000,oz:100,so:20,margenFreno:20,
+const S={capital:1000,leverage:100,stressLeverage:100,lote:0.01,mult:1.20,gridPips:10,tpClasico:21,price:4000,oz:100,so:20,margenFreno:20,
   maxo:50,broker:'vt_std_stp',volKey:'media',ruinTarget:1,commission:0.06,horaInicio:0,horaFin:22};
 const $=id=>document.getElementById(id);
 const nf=n=>Math.round(n).toLocaleString('es-ES');
@@ -2290,6 +2305,7 @@ function readInputs(){
   S.capital=Math.max(1,+$('capital').value||0); S.lote=+$('lote').value; S.mult=+$('mult').value;
   S.gridPips=+$('grid').value; S.tpClasico=+$('tpClasico').value; S.maxo=+$('maxo').value;
   S.commission=+$('commission').value;
+  if($('stressLev'))S.stressLeverage=+$('stressLev').value;
   S.horaInicio=+$('horaInicio').value; S.horaFin=+$('horaFin').value;
 }
 function syncLabels(){
@@ -2297,6 +2313,7 @@ function syncLabels(){
   $('lLote').textContent=S.lote.toFixed(2);
   $('lMult').textContent=S.mult.toFixed(2);
   $('lComm').textContent='$'+S.commission.toFixed(2).replace('.',',');
+  if($('lLevGold'))$('lLevGold').textContent='1:'+Math.round(S.leverage);
   const hf24 = S.horaFin===24?'24:00':String(S.horaFin).padStart(2,'0')+':00';
   $('lHoras').textContent=String(S.horaInicio).padStart(2,'0')+':00–'+hf24;
   const cov=hourlyCoverage(S.horaInicio,S.horaFin);
@@ -2404,7 +2421,7 @@ function runOOS(){
   const Etrain=train.reduce((a,c)=>a+c.n,0)/train.length;
   const Etest =test.reduce((a,c)=>a+c.n,0)/test.length;
   let maxNtest=1; for(const c of test) if(c.n>maxNtest)maxNtest=c.n;
-  const base={capital:S.capital,leverage:S.leverage,price:S.price,ozPerLot:S.oz,mult:S.mult,
+  const base={capital:S.capital,leverage:S.leverage,stressLeverage:S.stressLeverage,price:S.price,ozPerLot:S.oz,mult:S.mult,
     maxOrdenes:S.maxo,gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,
     hybridStart:(PRESET?PRESET.hybridStart:4),commissionPerLot:S.commission};
   const gcache={};
@@ -2521,7 +2538,7 @@ function generateLadderToTarget(){
   if(!(target>start*1.05)){ alert('Pon un objetivo mayor que tu capital actual ($'+nf(start)+') en "Simular hasta capital".'); return; }
   const colchon=Math.max(1, Math.round(+$('ladderMinOrders').value||30)); // colchón MANUAL, respetado tal cual
   const worst=empiricalWorstBasket();
-  const base={leverage:S.leverage, price:S.price, ozPerLot:S.oz, mult:S.mult, maxOrdenes:S.maxo,
+  const base={leverage:S.leverage,stressLeverage:S.stressLeverage, price:S.price, ozPerLot:S.oz, mult:S.mult, maxOrdenes:S.maxo,
     gridPips:S.gridPips, tpClassicPips:S.tpClasico, stopOutPct:S.so,
     hybridStart:(PRESET?PRESET.hybridStart:4), commissionPerLot:S.commission};
   const ceil=(cap,lot)=>AN_buildLevels(Object.assign({},base,{capital:cap,lotsInicial:lot})).length;
@@ -2626,14 +2643,14 @@ function render(){
 
   // --- motor determinista (peor caso, para grafico/tabla) ---
   const gridUsd = S.gridPips*0.10;
-  const pDet={capital:S.capital,leverage:S.leverage,price:S.price,ozPerLot:S.oz,
+  const pDet={capital:S.capital,leverage:S.leverage,stressLeverage:S.stressLeverage,price:S.price,ozPerLot:S.oz,
     lotsInicial:S.lote,mult:S.mult,maxOrdenes:S.maxo,grid:gridUsd,stopOut:S.so/100};
   const r=simulate(pDet);
   $('chipTechoVal').textContent=r.ordersOpened;
 
   // --- motor analitico probabilistico ---
   const sigmaDay = VOL_SCENARIOS[S.volKey];
-  const pAn={capital:S.capital,leverage:S.leverage,price:S.price,ozPerLot:S.oz,lotsInicial:S.lote,
+  const pAn={capital:S.capital,leverage:S.leverage,stressLeverage:S.stressLeverage,price:S.price,ozPerLot:S.oz,lotsInicial:S.lote,
     mult:S.mult,maxOrdenes:S.maxo,gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,
     hybridStart:(PRESET?PRESET.hybridStart:4), sigmaDay, commissionPerLot:S.commission};
   const f=AN_fullForecast(pAn);            // teorico: riesgo/margen/supervivencia (conservador)
@@ -2907,6 +2924,20 @@ function drawTable(r,f){
 
 // ================= EVENTOS =================
 ['lote','mult','grid','tpClasico','maxo','commission','horaInicio','horaFin'].forEach(id=>$(id).addEventListener('input',render));
+['stressLev'].forEach(id=>{ if($(id))$(id).addEventListener('input',render); });
+function calibrateGoldLeverage(){
+  const cap=Math.max(1,+$('calCap').value||1590), lot=+$('calLot').value||0.03, N=Math.max(2,Math.round(+$('calN').value||36));
+  const build=(L)=>AN_buildLevels({capital:cap,leverage:L,price:S.price,ozPerLot:S.oz,lotsInicial:lot,mult:S.mult,maxOrdenes:Math.max(N+8,S.maxo),gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,hybridStart:(PRESET?PRESET.hybridStart:4)}).length;
+  let lo=10,hi=3000,ans;
+  if(build(lo)>N){ans=lo;} else if(build(hi)<=N){ans=hi;}
+  else{ for(let i=0;i<50;i++){const mid=(lo+hi)/2; if(build(mid)<=N) lo=mid; else hi=mid;} ans=Math.round(lo/5)*5; }
+  ans=Math.min(3000,Math.max(10,ans));
+  S.leverage=ans; if($('levSegs'))[...$('levSegs').children].forEach(c=>c.classList.toggle('on',+c.dataset.lev===ans)); if($('lLevGold'))$('lLevGold').textContent='1:'+ans;
+  const got=build(ans);
+  if($('calOut'))$('calOut').textContent='Listo: apalancamiento del oro ajustado a 1:'+ans+'. Con esos datos el techo previsto es '+got+' ordenes (tu dato real: '+N+'). Ese 1:'+ans+' ya rige TODO el simulador; cambia capital/lote y los techos se recalculan solos.';
+  render();
+}
+if($('btnCalib'))$('btnCalib').addEventListener('click',calibrateGoldLeverage);
 document.querySelectorAll('.stp').forEach(b=>b.addEventListener('click',()=>{
   const el=$(b.dataset.t), d=parseFloat(b.dataset.d);
   let v=Math.round((+el.value+d)*100)/100;
@@ -2918,7 +2949,7 @@ $('so').addEventListener('input',()=>{S.so=+$('so').value; setBroker('custom',fa
 $('margenFreno').addEventListener('input',()=>{S.margenFreno=+$('margenFreno').value; render();});
 $('capChips').addEventListener('click',e=>{const t=e.target.closest('.qchip');if(!t)return;$('capital').value=t.dataset.cap;render();});
 $('levSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
-  [...$('levSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.leverage=+t.dataset.lev;render();});
+  [...$('levSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.leverage=+t.dataset.lev;if($('lLevGold'))$('lLevGold').textContent='1:'+S.leverage;render();});
 $('ozSegs').addEventListener('click',e=>{const t=e.target.closest('.seg');if(!t)return;
   [...$('ozSegs').children].forEach(c=>c.classList.remove('on'));t.classList.add('on');S.oz=+t.dataset.oz;$('ozCustom').value=S.oz;setBroker('custom',false);render();});
 $('ozCustom').addEventListener('input',()=>{
@@ -2970,7 +3001,7 @@ $('ladderAutoFill').addEventListener('click',()=>{
   const gridUsd=S.gridPips*0.10;
   let anyUnreachable=false;
   ladderRows.forEach(r=>{
-    const baseP={capital:r.from, leverage:S.leverage, price:S.price, ozPerLot:S.oz,
+    const baseP={capital:r.from, leverage:S.leverage,stressLeverage:S.stressLeverage, price:S.price, ozPerLot:S.oz,
       mult:r.mult||S.mult, maxOrdenes:S.maxo, grid:gridUsd, stopOut:S.so/100};
     const sol=solveLotForMinOrders(targetOrders, baseP, 0.01, 10.0);
     if(sol.status==='ok' && sol.lot){ r.lote=sol.lot; } else { anyUnreachable=true; }
@@ -3019,7 +3050,7 @@ $('reset').addEventListener('click',()=>{
   try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
 
   $('capital').value=1000;$('lote').value=0.01;$('mult').value=1.20;$('grid').value=10;$('tpClasico').value=21;
-  $('price').value=4000;$('maxo').value=50;$('so').value=20;$('margenFreno').value=20;$('commission').value=0.06;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=100;S.so=20;S.price=4000;S.volKey='media';S.ruinTarget=1;S.margenFreno=20;
+  $('price').value=4000;$('maxo').value=50;$('so').value=20;$('margenFreno').value=20;$('commission').value=0.06;if($('stressLev'))$('stressLev').value=100;S.stressLeverage=100;$('horaInicio').value=0;$('horaFin').value=22;S.leverage=100;S.oz=100;S.so=20;S.price=4000;S.volKey='media';S.ruinTarget=1;S.margenFreno=20;
   $('goalDaily').value=0;$('goalMonthly').value=0;$('goalDD').value=0;
   [...$('levSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.lev==='100'));
   [...$('ozSegs').children].forEach(c=>c.classList.toggle('on',c.dataset.oz==='100'));
@@ -3046,12 +3077,12 @@ $('reset').addEventListener('click',()=>{
 
 // ================= MEMORIA (persiste tus ajustes entre recargas/pestañas) =================
 const STORAGE_KEY='goldenEngineState_v1';
-const INPUT_IDS=['capital','lote','mult','grid','tpClasico','maxo','commission',
+const INPUT_IDS=['capital','lote','mult','grid','tpClasico','maxo','commission','stressLev',
   'horaInicio','horaFin','goalDaily','goalMonthly','goalDD','ruinTargetCustom','ozCustom','margenFreno','broker'];
 function saveState(){
   try{
     const vals={}; INPUT_IDS.forEach(id=>{const el=$(id); if(el) vals[id]=el.value;});
-    const extra={leverage:S.leverage,oz:S.oz,volKey:S.volKey,ruinTarget:S.ruinTarget,so:S.so,margenFreno:S.margenFreno,price:S.price};
+    const extra={leverage:S.leverage,stressLeverage:S.stressLeverage,oz:S.oz,volKey:S.volKey,ruinTarget:S.ruinTarget,so:S.so,margenFreno:S.margenFreno,price:S.price};
     localStorage.setItem(STORAGE_KEY, JSON.stringify({vals,extra}));
   }catch(e){/* almacenamiento no disponible: no pasa nada, sigue con los valores actuales */}
 }
