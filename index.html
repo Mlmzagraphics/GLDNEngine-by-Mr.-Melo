@@ -3034,11 +3034,20 @@ $('ladderTarget').addEventListener('input',()=>{
 $('ladderGenerate').addEventListener('click', generateLadderToTarget);
 $('advCompareBtn') && $('advCompareBtn').addEventListener('click', renderComparator);
 $('ladderAddRow').addEventListener('click',()=>{
+  readInputs();
+  const targetOrders=Math.max(1,Math.round(+$('ladderMinOrders').value||30));
+  const base={leverage:S.leverage,stressLeverage:S.stressLeverage,price:S.price,ozPerLot:S.oz,maxOrdenes:S.maxo,
+    gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,hybridStart:(PRESET?PRESET.hybridStart:4),commissionPerLot:S.commission};
   const last=ladderRows[ladderRows.length-1];
-  const nuevoFrom=last?last.from+1000:2000;
-  const nuevoLote=last?Math.round(last.lote*(nuevoFrom/last.from)*100)/100:0.02;
-  ladderRows.push({from:nuevoFrom, lote:nuevoLote, mult:last?last.mult:S.mult});
+  const mult=last?last.mult:S.mult;
+  const ceilAB=(cap,lot)=>AN_buildLevels(Object.assign({},base,{capital:cap,lotsInicial:lot,mult:mult})).length;
+  const minCapForLot=(lot)=>{ if(ceilAB(2e7,lot)<targetOrders) return null; let lo=20,hi=2e7; for(let it=0;it<50;it++){const mid=(lo+hi)/2; if(ceilAB(mid,lot)>=targetOrders)hi=mid;else lo=mid;} return Math.ceil(hi); };
+  const nextLot=last?Math.round((last.lote+0.01)*100)/100:(S.lote||0.01);
+  const cap=minCapForLot(nextLot);
+  if(cap==null){ alert('El lote '+nextLot+' no alcanza el techo de '+targetOrders+' ordenes ni con capital enorme. Baja el colchon o el multiplicador.'); return; }
+  ladderRows.push({from:cap, lote:nextLot, mult:mult, lock:'lote'});
   renderLadderRows();
+  const st=$('ladderGenStatus'); if(st) st.textContent='Escalon anadido: el lote '+nextLot+' requiere un capital minimo de $'+nf(cap)+' para el techo de '+targetOrders+' ordenes.';
 });
 $('ladderSimulate').addEventListener('click',()=>{
   readInputs();
