@@ -998,7 +998,8 @@
     </div>
     <p class="hint" style="margin-top:-4px">El auto-cálculo busca, para cada escalón, el <b>lote más grande</b> que aún mantenga al menos este techo de operaciones antes de un stop-out en el peor escenario (línea recta, sin retroceso) — usando el multiplicador que pongas en cada fila.</p>
 
-    <button type="button" id="ladderAutoFill" class="reset" style="margin:8px 0">⚙ Auto-calcular lotes según el techo</button>
+    <button type="button" id="ladderAutoFill" class="reset" style="margin:8px 0">⚙ Auto-calcular según el techo</button>
+    <p class="hint" style="margin:-2px 0 6px">Ajusta el <b>lote</b> al capital de cada escal&oacute;n. Si en un escal&oacute;n editaste el <b>lote</b> a mano, calcula en su lugar el <b>capital</b> que ese lote necesita.</p>
     <button type="button" id="ladderGenerate" class="reset" style="margin:8px 0;border-color:var(--gold);color:var(--gold)">⚡ Generar plan automático hasta el objetivo</button>
     <p class="hint" id="ladderGenStatus" style="min-height:16px;margin-top:-2px"></p>
     <button type="button" id="ladderAddRow" class="reset" style="margin-bottom:8px;border-style:dashed">+ Añadir escalón</button>
@@ -1954,8 +1955,8 @@ function renderLadderRows(){
   container.querySelectorAll('.ladder-from,.ladder-lote,.ladder-mult').forEach(inp=>{
     inp.addEventListener('input',()=>{
       const i=+inp.dataset.i;
-      if(inp.classList.contains('ladder-from')) ladderRows[i].from=ladderToUSD(+inp.value||0);
-      if(inp.classList.contains('ladder-lote')) ladderRows[i].lote=+inp.value||0.01;
+      if(inp.classList.contains('ladder-from')){ ladderRows[i].from=ladderToUSD(+inp.value||0); ladderRows[i].lock='cap'; }
+      if(inp.classList.contains('ladder-lote')){ ladderRows[i].lote=+inp.value||0.01; ladderRows[i].lock='lote'; }
       if(inp.classList.contains('ladder-mult')) ladderRows[i].mult=+inp.value||1.2;
     });
   });
@@ -2997,19 +2998,29 @@ $('historyReset').addEventListener('click', ()=>{
 
 $('ladderAutoFill').addEventListener('click',()=>{
   readInputs();
-  const targetOrders=+$('ladderMinOrders').value||30;
+  const targetOrders=Math.max(1,Math.round(+$('ladderMinOrders').value||30));
   const gridUsd=S.gridPips*0.10;
-  let anyUnreachable=false;
+  const base={leverage:S.leverage,stressLeverage:S.stressLeverage,price:S.price,ozPerLot:S.oz,maxOrdenes:S.maxo,
+    gridPips:S.gridPips,tpClassicPips:S.tpClasico,stopOutPct:S.so,hybridStart:(PRESET?PRESET.hybridStart:4),commissionPerLot:S.commission};
+  const ceilAB=(cap,lot,mult)=>AN_buildLevels(Object.assign({},base,{capital:cap,lotsInicial:lot,mult:mult||S.mult})).length;
+  const minCapForLot=(lot,mult)=>{ if(ceilAB(2e7,lot,mult)<targetOrders) return null; let lo=20,hi=2e7; for(let it=0;it<50;it++){const mid=(lo+hi)/2; if(ceilAB(mid,lot,mult)>=targetOrders)hi=mid;else lo=mid;} return Math.ceil(hi/10)*10; };
+  let nLote=0,nCap=0,unreachLot=false,unreachCap=false;
   ladderRows.forEach(r=>{
-    const baseP={capital:r.from, leverage:S.leverage,stressLeverage:S.stressLeverage, price:S.price, ozPerLot:S.oz,
-      mult:r.mult||S.mult, maxOrdenes:S.maxo, grid:gridUsd, stopOut:S.so/100};
-    const sol=solveLotForMinOrders(targetOrders, baseP, 0.01, 10.0);
-    if(sol.status==='ok' && sol.lot){ r.lote=sol.lot; } else { anyUnreachable=true; }
+    if(r.lock==='lote'){
+      const cap=minCapForLot(r.lote, r.mult);
+      if(cap!=null){ r.from=cap; nCap++; } else { unreachCap=true; }
+    } else {
+      const baseP={capital:r.from, leverage:S.leverage,stressLeverage:S.stressLeverage, price:S.price, ozPerLot:S.oz,
+        mult:r.mult||S.mult, maxOrdenes:S.maxo, grid:gridUsd, stopOut:S.so/100};
+      const sol=solveLotForMinOrders(targetOrders, baseP, 0.01, 10.0);
+      if(sol.status==='ok' && sol.lot){ r.lote=sol.lot; nLote++; } else { unreachLot=true; }
+    }
   });
   renderLadderRows();
-  if(anyUnreachable){
-    alert('Aviso: en al menos un escalón, ni el lote mínimo (0.01) alcanza el techo de '+targetOrders+' operaciones que pediste con ese capital — revísalo a mano (puede que ese capital sea muy bajo para ese techo, o el multiplicador muy alto).');
-  }
+  const st=$('ladderGenStatus');
+  if(st) st.textContent='Auto-calculo (techo '+targetOrders+'): '+nLote+' escalon(es) ajustaron el LOTE al capital; '+nCap+' ajustaron el CAPITAL al lote.';
+  if(unreachLot) alert('Aviso: en algun escalon donde fijaste el CAPITAL, ni el lote minimo (0.01) alcanza el techo de '+targetOrders+' con ese capital. Sube el capital o baja el colchon.');
+  if(unreachCap) alert('Aviso: en algun escalon donde fijaste el LOTE, ese lote no alcanza el techo de '+targetOrders+' ni con capital muy alto (multiplicador muy alto o colchon muy exigente). Baja el lote o el colchon.');
 });
 $('ladderUnitSegs').addEventListener('click',e=>{
   const t=e.target.closest('.seg'); if(!t) return;
