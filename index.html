@@ -681,6 +681,18 @@
       <div class="subhead">Rendimiento por hora</div>
       <div class="fgrid"><div class="fcell"><div class="k">Mejor / peor hora</div><div class="v" id="advHours">—</div><div class="sub" id="advHoursSub"></div></div></div>
     </div>
+    <div class="keep-block" id="patternsBlock">
+      <div class="subhead">Patrones de mercado · agresividad por periodo</div>
+      <div class="segs" id="patSegs" style="margin-bottom:10px">
+        <button type="button" class="seg on" data-dim="hora">Hora</button>
+        <button type="button" class="seg" data-dim="dia">Día</button>
+        <button type="button" class="seg" data-dim="mes">Mes</button>
+        <button type="button" class="seg" data-dim="sesion">Sesión</button>
+      </div>
+      <p class="hint" id="patHeadline" style="margin:2px 0 10px"></p>
+      <div id="patBars"></div>
+      <p class="hint" id="patNote" style="margin-top:10px;font-size:.86em;line-height:1.4"></p>
+    </div>
     <div class="keep-block">
       <div class="subhead">Por qué (explicación)</div>
       <p class="hint" id="advExplain" style="font-size:.92em;line-height:1.4"></p>
@@ -1102,6 +1114,11 @@
     <div class="manual-block">
       <div class="manual-h">Plan de escalado de capital</div>
       <p class="manual-glossary">Proyecta cómo llevar la cuenta de X a Y subiendo el lote conforme crece el capital. El "colchón" (techo mínimo de órdenes) es tu red de seguridad: el generador elige el mayor lote cuyo techo cubra ese colchón. <b>Recomendado: colchón ≥ tu peor basket real</b> (te avisa si lo bajas). Si un tramo sale "No alcanzable", te dice cuál y el lote máximo seguro para ese capital.</p>
+    </div>
+
+    <div class="manual-block">
+      <div class="manual-h">Patrones de mercado (hora, día, mes, sesión)</div>
+      <p class="manual-glossary">Una ventana que se alimenta sola de <b>cada historial que subes</b> y busca cuándo el mercado es más fuerte. Elige el desglose — <b>Hora</b>, <b>Día</b> de la semana, <b>Mes</b> o <b>Sesión</b> (Asia/Europa/EEUU) — y te marca el periodo <b>más agresivo</b> y el <b>más tranquilo</b>. Cada barra es un <b>índice 0-100 = 50% profundidad de basket (volatilidad real) + 50% frecuencia de ciclos</b>: alto significa que ahí el mercado empuja fuerte y/o hay mucha actividad. A la derecha ves la profundidad media, el % de actividad y el peor basket de ese periodo. Todo en <b>hora del servidor</b> del bróker, y se acumula con cada archivo nuevo. Sirve para encontrar las franjas de más riesgo/volatilidad y las más calmadas.</p>
     </div>
 
     <div class="manual-block">
@@ -2620,8 +2637,75 @@ function advParamCompare(pAn){
     rows.push({l,N,pd,ru}); }
   return rows;
 }
+// ============ PATRONES DE MERCADO (agresividad por hora/día/mes/sesión) ============
+// Se alimenta de EMP.cycleSeq (cada ciclo real subido: fecha-hora, profundidad n, profit).
+let PAT_DIM='hora';
+function _patColor(agg){ // calma(oliva) -> oro -> caliente(rojo-naranja)
+  const s=[[74,96,63],[255,183,43],[255,106,58]]; const t=Math.max(0,Math.min(1,agg/100));
+  let a,b,f; if(t<0.5){a=s[0];b=s[1];f=t/0.5;}else{a=s[1];b=s[2];f=(t-0.5)/0.5;}
+  const c=a.map((x,i)=>Math.round(x+(b[i]-x)*f)); return 'rgb('+c[0]+','+c[1]+','+c[2]+')';
+}
+function _patBuckets(dim){
+  const seq=Array.isArray(EMP.cycleSeq)?EMP.cycleSeq:[];
+  let N,labels,idxOf;
+  if(dim==='dia'){ N=7; labels=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']; idxOf=d=>(d.getDay()+6)%7; }
+  else if(dim==='mes'){ N=12; labels=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; idxOf=d=>d.getMonth(); }
+  else if(dim==='sesion'){ N=3; labels=['Asia · 0-7h','Europa · 8-15h','EEUU · 16-23h']; idxOf=d=>{const h=d.getHours(); return h<8?0:(h<16?1:2);}; }
+  else { N=24; labels=Array.from({length:24},(_,h)=>String(h).padStart(2,'0')+'h'); idxOf=d=>d.getHours(); }
+  const cnt=new Array(N).fill(0), dep=new Array(N).fill(0), prof=new Array(N).fill(0), mx=new Array(N).fill(0);
+  let total=0;
+  for(const c of seq){ const d=new Date(c.t0); if(isNaN(d.getTime())) continue; const i=idxOf(d);
+    if(i<0||i>=N) continue; cnt[i]++; dep[i]+=(c.n||0); prof[i]+=(c.profit||0); if((c.n||0)>mx[i]) mx[i]=c.n; total++; }
+  const avgD=cnt.map((c,i)=>c>0?dep[i]/c:0);
+  const maxAvgD=Math.max(...avgD,1e-9), maxCnt=Math.max(...cnt,1);
+  const rows=labels.map((lb,i)=>{
+    if(cnt[i]===0) return {label:lb,cnt:0,agg:0,avgDepth:0,share:0,mx:0,empty:true};
+    const agg=100*(0.5*(avgD[i]/maxAvgD)+0.5*(cnt[i]/maxCnt));
+    return {label:lb,cnt:cnt[i],agg,avgDepth:avgD[i],share:total>0?cnt[i]/total:0,mx:mx[i],empty:false};
+  });
+  return {rows,total};
+}
+function renderPatterns(){
+  const el=id=>document.getElementById(id); if(!el('patBars')) return;
+  const {rows,total}=_patBuckets(PAT_DIM);
+  if(total===0){ el('patBars').innerHTML=''; el('patHeadline').textContent='';
+    el('patNote').textContent='Sube historiales reales (MT5) para ver tus patrones de mercado. Se acumulan con cada archivo que subas.'; return; }
+  const minData=Math.max(5,total*0.01);
+  const valid=rows.filter(r=>r.cnt>=minData);
+  let hotLabel=null;
+  if(valid.length){
+    const hot=valid.reduce((a,b)=>b.agg>a.agg?b:a), cool=valid.reduce((a,b)=>b.agg<a.agg?b:a);
+    hotLabel=hot.label;
+    el('patHeadline').innerHTML='🔥 Más agresivo: <b style="color:var(--gold)">'+hot.label+'</b> (índice '+Math.round(hot.agg)+') · Más tranquilo: <b style="color:var(--gold)">'+cool.label+'</b> (índice '+Math.round(cool.agg)+')';
+  } else el('patHeadline').textContent='';
+  let html='';
+  for(const r of rows){
+    const w=r.empty?0:Math.max(3,r.agg), col=r.empty?'var(--edge)':_patColor(r.agg);
+    const info=r.empty?'<span style="color:var(--faint)">sin datos</span>':('prof. '+r.avgDepth.toFixed(1)+' · '+(r.share*100).toFixed(1)+'% · peor '+r.mx);
+    const isHot=(!r.empty && r.label===hotLabel);
+    const fire=isHot?'<span style="position:absolute;right:6px;top:0;height:100%;display:flex;align-items:center;font-size:13px;filter:drop-shadow(0 0 4px rgba(255,106,58,.7))">🔥</span>':'';
+    html+='<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">'
+      +'<div style="width:50px;flex:none;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:'+(isHot?'var(--gold)':'var(--muted)')+';font-weight:'+(isHot?'600':'400')+'">'+r.label+'</div>'
+      +'<div style="flex:1;min-width:40px;background:var(--panel2);border-radius:6px;overflow:hidden;height:21px;position:relative">'
+      +'<div style="height:100%;width:'+w+'%;background:'+col+';transition:width .3s"></div>'
+      +'<div style="position:absolute;left:7px;top:0;height:100%;display:flex;align-items:center;font-size:10px;font-weight:600;color:var(--ink)">'+(r.empty?'':Math.round(r.agg))+'</div>'
+      +fire
+      +'</div>'
+      +'<div style="width:118px;flex:none;font-size:9.5px;color:var(--muted);text-align:right">'+info+'</div>'
+      +'</div>';
+  }
+  el('patBars').innerHTML=html;
+  const w1={hora:'cada hora',dia:'cada día de la semana',mes:'cada mes',sesion:'cada sesión'}[PAT_DIM];
+  el('patNote').innerHTML='Índice 0-100 = 50% profundidad de basket (volatilidad real) + 50% frecuencia de ciclos, relativo entre '+w1+'. "prof." = órdenes medias por ciclo · "%" = reparto de actividad · "peor" = basket más profundo. Sobre '+total.toLocaleString('es-ES')+' ciclos de tus historiales, en hora del servidor del bróker.';
+}
+(function(){ const sg=document.getElementById('patSegs'); if(sg) sg.addEventListener('click',e=>{
+  const t=e.target.closest('.seg'); if(!t) return;
+  [...sg.children].forEach(c=>c.classList.remove('on')); t.classList.add('on');
+  PAT_DIM=t.dataset.dim; renderPatterns(); }); })();
+
 function renderAdvanced(pAn){
   window.__advPAn=pAn; const el=id=>document.getElementById(id);
+  try{ renderPatterns(); }catch(e){}
   try{ const rg=advRegime(); if(rg && el('advRegimeBlock')){ el('advRegime').textContent=rg.oAvg.toFixed(1)+' → '+rg.rAvg.toFixed(1)+' órd (máx '+rg.oMax+'→'+rg.rMax+')'; el('advRegimeSub').textContent=rg.alerta?'⚠ el mercado reciente está MÁS profundo que tu calibración — revisa el riesgo':'estable respecto a tu calibración'; el('advRegime').className='v '+(rg.alerta?'':'accent'); el('advRegimeBlock').style.display=''; } else if(el('advRegimeBlock')) el('advRegimeBlock').style.display='none'; }catch(e){}
   try{ selectActiveDistribution(pAn.lotsInicial); const analytic=AN_hybridForecast(pAn,EMP.cyclesPerDay,0).EProfitCycle; const mc=advMcMeanCycle(pAn);
     if(mc!=null && el('advMcBlock')){ const diff=analytic!==0?Math.abs(analytic-mc)/Math.abs(analytic)*100:0; el('advMc').textContent='$'+analytic.toFixed(3)+' vs $'+mc.toFixed(3); el('advMcSub').textContent='analítico vs Monte-Carlo puro · diferencia '+diff.toFixed(1)+'% '+(diff<10?'(✓ dos métodos coinciden)':'(⚠ divergen — revisar)'); el('advMcBlock').style.display=''; } else if(el('advMcBlock')) el('advMcBlock').style.display='none'; }catch(e){}
